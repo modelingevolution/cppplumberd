@@ -6,14 +6,29 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Include directories
-include_directories(include)
+# Find Boost components
+set(BOOST_MIN_VERSION "1.87.0")
+# Try to find Boost using BOOST_ROOT environment variable
+find_package(Boost ${BOOST_MIN_VERSION} REQUIRED)
+
+if(NOT Boost_FOUND)
+  message(FATAL_ERROR "Boost ${BOOST_MIN_VERSION} not found. Please set BOOST_ROOT environment variable.")
+endif()
+
+message(STATUS "Boost version: ${Boost_VERSION}")
+message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")
 
 # Define the header-only library target
 add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(${PROJECT_NAME} INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${Boost_INCLUDE_DIRS}>
   $<INSTALL_INTERFACE:include>
+)
+
+
+target_link_libraries(${PROJECT_NAME} INTERFACE
+  
 )
 
 # Installation
@@ -26,7 +41,6 @@ install(EXPORT ${PROJECT_NAME}Targets
   NAMESPACE ${PROJECT_NAME}::
   DESTINATION lib/cmake/${PROJECT_NAME}
 )
-
 
 # Create config file
 include(CMakePackageConfigHelpers)

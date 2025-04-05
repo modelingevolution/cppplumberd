@@ -1,15 +1,21 @@
 ﻿# cppplumberd
 
-A modern, cross-platform, header-only C++ library designed to work on WSL, Linux, x64, and arm64 architectures.
+A modern, cross-platform, header-only C++ library designed to work on WSL, Linux/Windows, x64, and arm64 architectures.
 
 ## Features
 
 - Header-only library (no compilation required)
-- Cross-platform compatibility (WSL, Linux, x64, arm64)
+- Cross-platform compatibility (Windows, WSL, Linux, x64, arm64)
 - Modern C++23 implementation
 - CMake integration
-- Example applications
-- Unit tests with Google Test
+- Example applications, Unit tests with Google Test
+- CommandHandler, EventHandler abstractions.
+- NNG (Nanomsg Next Generation) support for messaging with Protobuf serialization
+
+## Dependencies
+- Boost.Signals2
+- nngcpp
+- protobuf
 
 ## Requirements
 
