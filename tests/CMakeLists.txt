@@ -14,7 +14,7 @@ if(NOT GTest_FOUND)
 endif()
 
 # Add test executable
-add_executable(library_tests test_cppplumberd.cpp)
+add_executable(library_tests "cppplumberd_tests.cpp")
 target_link_libraries(library_tests PRIVATE ${PROJECT_NAME} gtest gtest_main)
 
 # Register test
