@@ -124,7 +124,10 @@ namespace cppplumberd {
 	public:
 		// we expect here that "this" implements IEventHandler<TEvent>
 		template<typename TEvent>
-		void Map();
+		void Map()
+		{
+			
+		}
 
 		void IEventDispatcher::Handle(const Metadata& metadata, unsigned int messageId, MessagePtr msg) override
 		{
@@ -270,7 +273,7 @@ namespace cppplumberd {
 	private:
 		unique_ptr<ProtoReqRspClientHandler> _handler;
 	};
-
+	
 	class ISocketFactory {
 	public:
 		virtual unique_ptr<ITransportPublishSocket> CreatePublishSocket(const string& endpoint) = 0;
@@ -289,6 +292,53 @@ namespace cppplumberd {
 	private:
 		shared_ptr<ISocketFactory> _socketFactory;
 	};
+
+	class NngSocketFactory : public ISocketFactory
+	{
+
+	};
+
+	class Host
+	{
+		shared_ptr<ISocketFactory> _socketFactory;
+	public:
+
+		Host(shared_ptr<ISocketFactory> factory) {
+			_socketFactory = factory;
+		}
+		template<typename TCommand, unsigned int MessageId>
+		void AddCommandHandler();
+
+		template<typename TCommand, unsigned int MessageId>
+		void AddCommandHandler(shared_ptr<ICommandHandler<TCommand>> cmd);
+
+		void Start();
+		void Stop();
+		shared_ptr<ISubscriptionManager> SubscriptionManager()
+		{
+			
+		}
+	};
+	class Client
+	{
+		shared_ptr<ISocketFactory> _socketFactory;
+	public:
+
+		Client(shared_ptr<ISocketFactory> factory) {
+			_socketFactory = factory;
+		}
+		void Start();
+		void Stop();
+		shared_ptr<CommandBus> CommandBus()
+		{
+			return nullptr;
+		}
+		shared_ptr<ISubscriptionManager> SubscriptionManager()
+		{
+			return nullptr;
+		}
+	};
+
 }
 
 
