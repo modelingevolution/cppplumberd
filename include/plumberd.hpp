@@ -86,19 +86,55 @@ namespace cppplumberd {
 		string Serialize(const TMessage& msg) const;
 	};
 
-	template <typename TRsp>
+	typedef void* MessagePtr;
+
+	
+
+	template <typename TRsp, typename TMeta>
 	class MessageDispatcher {
 	protected:
 		template<typename TMessage, unsigned int MessageId>
-		void RegisterHandler(function<TRsp(const TMessage&)> handler);
+		void RegisterHandler(function<TRsp(const TMeta&, const TMessage&)> handler);
+
+		void Handle(const TMeta&, unsigned int messageId, MessagePtr msg);
 
 		template<typename TMessage>
-		void Handle(const TMessage& msg);
+		void Handle(const TMeta &, const TMessage& msg);
 
 		template<typename TMessage, unsigned int MessageId>
 		void RegisterMessage();
 
 	};
+	class Metadata
+	{
+
+	};
+	template<typename TEvent>
+	class IEventHandler {
+	public:
+		virtual void Handle(const Metadata& metadata, const TEvent& evt) = 0;
+		virtual ~IEventHandler() = default;
+	};
+	class IEventDispatcher
+	{
+		virtual void Handle(const Metadata&, unsigned int messageId, MessagePtr msg) = 0;
+	};
+
+	class EventHandlerBase : public IEventDispatcher {
+	public:
+		// we expect here that "this" implements IEventHandler<TEvent>
+		template<typename TEvent>
+		void Map();
+
+		void IEventDispatcher::Handle(const Metadata& metadata, unsigned int messageId, MessagePtr msg) override
+		{
+			
+		}
+	
+
+	};
+
+	
 	/*
 	* Used by server to publish events.
 	*/
@@ -127,7 +163,7 @@ namespace cppplumberd {
 		void Stop();
 	private:
 		unique_ptr<ITransportSubscribeSocket> _socket;
-		MessageDispatcher<void> _msgDispatcher;
+		MessageDispatcher<void, Metadata> _msgDispatcher;
 	};
 	/*
 	* Used by client to send requests to server and receive responses.
@@ -164,17 +200,16 @@ namespace cppplumberd {
 	concept TException = requires(T t) {
 		{ t.ErrorCode() } -> same_as<unsigned short>;
 	};
+	
 
 	template<typename TCommand>
 	class ICommandHandler {
 	public:
-		virtual void HandleCommand(const TCommand& cmd) = 0;
+		virtual void Handle(const string& stream_id, const TCommand& cmd) = 0;
 		virtual ~ICommandHandler() = default;
 	};
-
-	/*
-	* Error handling, and exception-to-response translation.Server-Side
-	*/
+	
+	
 	class CommandServiceHandler {
 	public:
 		template<typename TCommand>
@@ -187,11 +222,42 @@ namespace cppplumberd {
 	private:
 		unique_ptr<ProtoReqRspSrvHandler> _handler;
 	};
+	/* Can be used on Client side or Server side */
+	class ISubscriptionManager
+	{
+	public:
+		class ISubscription
+		{
+			virtual void Unsubscribe() = 0;
+			virtual ~ISubscription() = 0;
+		};
+		template<typename TEvent>
+		class IEventPublisher
+		{
+			virtual void Publish(const Metadata& m, const TEvent&);
+		};
 
+		unique_ptr<ISubscription> Subscribe(const string& streamName,shared_ptr<IEventDispatcher> handler);
 
-	/*
-	* Client-Side, translates Command-Response to Exception and throws if needed.
-	*/
+		// For client this would be low level adapters for sub-handler-> socket-subscribers.
+		// For server this would be used by IEventStore to push events to low-level publish-handler->publish-socket
+		template<typename TEvent>
+		vector<shared_ptr<IEventPublisher<TEvent>>> GetPublishers(); // 
+	};
+
+	// Server-side
+	class EventStore
+	{
+	public:
+		template<typename TMessage, unsigned int MessageId>
+		void RegisterMessage(); // event
+
+		template<typename TEVent> // pushes events to local ISubscriptionManager 
+		void Publish(const string &streamName, const TEVent& evt);
+	private:
+
+	};
+	
 	class CommandBus {
 	public:
 		CommandBus(shared_ptr<CommandServiceHandler> handler);

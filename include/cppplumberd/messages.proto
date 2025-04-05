@@ -1,0 +1,21 @@
+// proto/messages.proto
+syntax = "proto3";
+
+package cppplumberd;
+
+
+message CommandHeader {
+	uint32 command_type = 1;
+}
+// Response to commands
+message CommandResponse {
+  uint32 status_code = 1;
+  string error_message = 2;
+  
+}
+
+message EventHeader {
+	uint64 timestamp = 1;
+	uint32 event_type = 2;
+}
+
