@@ -14,24 +14,24 @@ set_target_properties(server PROPERTIES
 )
 
 
-
 # Protocol Buffers integration
 find_package(Protobuf REQUIRED)
 set(PROTO_FILES
     proto/messages.proto
 )
 
-
-
 # Make sure output directories exist for protobuf-generated files
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/proto)
 
 # Generate protobuf files
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS )
 
 # Display protobuf output locations for debugging
 message(STATUS "Proto sources: ${PROTO_SRCS}")
 message(STATUS "Proto headers: ${PROTO_HDRS}")
+
+target_include_directories(server PRIVATE ${PROTO_HDRS})
+target_include_directories(client PRIVATE ${PROTO_HDRS})
 # Install the example if requested
 if(INSTALL_EXAMPLES)
   install(TARGETS client

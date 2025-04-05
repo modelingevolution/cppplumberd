@@ -1,6 +1,6 @@
 #include "../../include/plumberd.hpp"
 #include "interfaces.hpp"
-#include "messages.pb.h"
+#include "proto/messages.pb.h"
 namespace app {
 	using namespace cppplumberd;
 	enum COMMANDS : unsigned int {

@@ -15,7 +15,7 @@ namespace app {
 
         virtual std::string GetName() const = 0;
         // Get property type
-        virtual GType GetType() const = 0;
+        
         virtual bool IsReadable() const = 0;
         virtual bool IsWritable() const = 0;
         virtual std::shared_ptr<int> GetValue() const = 0;

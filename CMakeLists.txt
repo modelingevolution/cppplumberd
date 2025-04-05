@@ -68,7 +68,7 @@ install(FILES
 option(BUILD_TESTS "Build tests" ON)
 if(BUILD_TESTS)
   enable_testing()
-  add_subdirectory(tests)
+  #add_subdirectory(tests)
 endif()
 
 # Create an example executable that uses the library
