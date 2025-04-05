@@ -24,9 +24,10 @@
 #include <vector>
 #include <map>
 #include <chrono>
+#include <boost/signals2.hpp>
 using namespace std;
 using namespace std::chrono;
-
+using namespace boost::signals2;
 namespace cppplumberd {
 
 	struct Version {
@@ -48,8 +49,11 @@ namespace cppplumberd {
 	};
 	class ITransportSubscribeSocket {
 	public:
+		using ReceivedSignal = signal<void(const string&)>;
+		ReceivedSignal Received;
+
 		virtual void Connect(const string& url) = 0;
-		virtual void Receive(function<void(const string&)>) = 0;
+		
 		virtual ~ITransportSubscribeSocket() = 0;
 	};
 	class ITransportReqRspClientSocket {
@@ -59,9 +63,13 @@ namespace cppplumberd {
 		virtual ~ITransportReqRspClientSocket() = 0;
 	};
 	class ITransportReqRspSrvSocket {
+		class IResponse
+		{
+			virtual void Return(const string&);
+			virtual ~IResponse() = 0;
+		};
 	public:
-		/* returns a funciton that shall be used to return data back to client. */
-		virtual function<void(const string&)> Handle(const string& data) = 0;
+		virtual void Initialize(function<IResponse(const string&)>) = 0;
 		virtual void Bind(const string& url) = 0;
 		virtual ~ITransportReqRspSrvSocket() = 0;
 	};
