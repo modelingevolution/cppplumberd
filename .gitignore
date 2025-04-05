@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+/.vs/cppplumberd/CopilotIndices/17.14.260.54502
+/.vs/cppplumberd/FileContentIndex
+/.vs/cppplumberd/FileContentIndex/2db0c5d9-9151-43e3-8490-f461fc067c8d.vsidx
+/.vs/cppplumberd/v17
+/.vs
+/out/build/x64-Debug
