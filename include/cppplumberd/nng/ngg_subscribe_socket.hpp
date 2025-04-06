@@ -6,6 +6,7 @@
 #include <atomic>
 #include <nngpp/nngpp.h>
 #include <nngpp/protocol/sub0.h>
+#include <nngpp/protocol/req0.h>
 #include "cppplumberd/transport_interfaces.hpp"
 
 namespace cppplumberd {
@@ -15,6 +16,7 @@ namespace cppplumberd {
     // NNG implementation for Subscribe socket using nngpp - with API fixes
     class NngSubscribeSocket : public ITransportSubscribeSocket {
     private:
+        string _url;
         nng::socket _socket;
         bool _connected = false;
         thread _recvThread;
@@ -28,30 +30,25 @@ namespace cppplumberd {
                     Received(data);
                 }
                 catch (const nng::exception& e) {
-                    if (e.get_error() == nng::error::timedout) {
-                        // Only handle timeout - it's expected
-                        this_thread::sleep_for(chrono::milliseconds(10));
-                    }
-                    else if (!_running) {
-                        // Exit thread if we're shutting down
+                    if (!_running) {
                         break;
                     }
-                    else {
-                        // For any other error, fail fast - rethrow to terminate the thread
-                        throw;
+                    if (e.get_error() == nng::error::timedout) {
+                        continue;
                     }
+                	throw;
                 }
             }
         }
 
     public:
-        NngSubscribeSocket() {
-            // Open a subscriber socket - will throw on failure
+        NngSubscribeSocket(const string &url) : _url(url) {
+            
             _socket = nng::sub::open();
+            //_socket = nng::req::open();
             // Subscribe to everything
-            nng::sub::set_opt_subscribe(_socket.get(), "");
-
-            // Set a receive timeout
+            //nng::sub::set_opt_subscribe(_socket, "");
+            nng_setopt(_socket.get(), NNG_OPT_SUB_SUBSCRIBE, "", 0);
             _socket.set_opt_ms(nng::to_name(nng::option::recv_timeout), 100);
         }
 
@@ -63,14 +60,23 @@ namespace cppplumberd {
                 }
             }
         }
-
-        void Connect(const string& url) override {
+        void Start() override
+        {
+            Start(_url);
+        }
+        void Start(const string& url) override {
+            
             if (_connected) {
                 throw runtime_error("Socket already connected");
             }
-
-            // Connect to the URL - will throw on failure
+            if (_url != url)
+                _url = url;
+            
             _socket.dial(url.c_str());
+            
+
+            cout << "connected to: " << url << endl;
+
             _connected = true;
 
             // Start receive thread

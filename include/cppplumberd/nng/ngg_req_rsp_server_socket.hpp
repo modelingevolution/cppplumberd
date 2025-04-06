@@ -4,6 +4,7 @@
 #include <memory>
 #include <thread>
 #include <atomic>
+#include <iostream>
 #include <nngpp/nngpp.h>
 #include <nngpp/protocol/rep0.h>
 #include <nngpp/socket_view.h>
@@ -40,17 +41,13 @@ namespace cppplumberd {
                 }
                 catch (const nng::exception& e) {
                     if (e.get_error() == nng::error::timedout) {
-                        // Only handle timeout - it's expected
-                        this_thread::sleep_for(chrono::milliseconds(10));
+                        continue;
                     }
-                    else if (!_running) {
-                        // Exit thread if we're shutting down
-                        break;
+                    if (!_running) {
+	                    break;
                     }
-                    else {
-                        // For any other error, fail fast - rethrow to terminate the thread
-                        throw;
-                    }
+                    // For any other error, fail fast - rethrow to terminate the thread
+                    throw;
                 }
             }
         }
@@ -59,7 +56,7 @@ namespace cppplumberd {
         NngReqRspSrvSocket(const string &url) : _url(url) {
             // Open a reply socket - will throw on failure 
             _socket = nng::rep::open();
-            //_socket.set_opt_ms(nng::to_name(nng::option::recv_timeout), 100);
+            _socket.set_opt_ms(nng::to_name(nng::option::recv_timeout), 1000);
         }
 
         ~NngReqRspSrvSocket() override {
@@ -87,14 +84,17 @@ namespace cppplumberd {
             if (!_handler) {
                 throw runtime_error("Handler not initialized");
             }
-
+            if (_url != url)
+                _url = url;
             // Bind the socket - will throw on failure
             _socket.listen(url.c_str());
+            
             _bound = true;
 
             // Start receive thread
             _running = true;
             _recvThread = thread(&NngReqRspSrvSocket::ReceiveLoop, this);
+            cout << "listening at: " << url << ". receive loop created." << endl;
         }
     };
 }

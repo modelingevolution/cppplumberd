@@ -13,34 +13,30 @@ using namespace std::chrono;
 using namespace boost::signals2;
 namespace cppplumberd {
 
-	class ITransportPublishSocket {
+	class ISocket
+	{
 	public:
-		virtual void Bind(const string& url) = 0;
-		virtual void Send(const string& data) = 0;
-		virtual ~ITransportPublishSocket() = default;
+		virtual void Start(const string& url) = 0;
+		virtual void Start() = 0;
+		virtual ~ISocket() = default;
 	};
-	class ITransportSubscribeSocket {
+	class ITransportPublishSocket : public ISocket {
+	public:
+		virtual void Send(const string& data) = 0;
+	};
+	class ITransportSubscribeSocket : public ISocket {
 	public:
 		using ReceivedSignal = signal<void(const string&)>;
 		ReceivedSignal Received;
 
-		virtual void Connect(const string& url) = 0;
-
-		virtual ~ITransportSubscribeSocket() = default;
 	};
-	class ITransportReqRspClientSocket {
+	class ITransportReqRspClientSocket : public ISocket {
 	public:
 		virtual string Send(const string& data) = 0;
-		virtual void Connect(const string& url) = 0;
-		virtual ~ITransportReqRspClientSocket() = default;
 	};
-	class ITransportReqRspSrvSocket {
+	class ITransportReqRspSrvSocket : public ISocket {
 	public:
-
 		virtual void Initialize(function<string(const string&)>) = 0;
-		virtual void Start(const string& url) = 0;
-		virtual void Start() = 0;
-		virtual ~ITransportReqRspSrvSocket() = default;
 	};
 	class ISocketFactory {
 	public:

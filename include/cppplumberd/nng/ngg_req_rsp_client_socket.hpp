@@ -14,23 +14,29 @@ namespace cppplumberd {
     // NNG implementation for Request-Reply client socket using nngpp - with correct API usage
     class NngReqRspClientSocket : public ITransportReqRspClientSocket {
     private:
+		string _url;
         nng::socket _socket;
         bool _connected = false;
 
     public:
-        NngReqRspClientSocket() {
+        NngReqRspClientSocket(const string &url) : _url(url) {
             // Open a request socket - will throw on failure
             _socket = nng::req::open();
         }
-
-        void Connect(const string& url) override {
+		void Start() override
+		{
+            Start(_url);
+		}
+        void Start(const string& url) override {
             if (_connected) {
                 throw runtime_error("Socket already connected");
             }
+			if (_url != url)
+				_url = url;
 
-            // Connect to the URL - will throw on failure
             _socket.dial(url.c_str());
             _connected = true;
+            cout << "connected to: " << url << endl;
         }
 
         string Send(const string& data) override {

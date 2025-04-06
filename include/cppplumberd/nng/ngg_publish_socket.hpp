@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <iostream>
 #include <memory>
 #include <nngpp/nngpp.h>
 #include <nngpp/protocol/pub0.h>
@@ -15,20 +16,29 @@ namespace cppplumberd {
     class NngPublishSocket : public ITransportPublishSocket {
     private:
         nng::socket _socket;
+        string _url;
         bool _bound = false;
 
     public:
-        NngPublishSocket() {
+        NngPublishSocket(const string &url) : _url(url) {
             // Open a publisher socket - will throw on failure
             _socket = nng::pub::open();
+            
         }
-
-        void Bind(const string& url) override {
+        void Start() override
+        {
+            Start(_url);
+        }
+        void Start(const string& url) override {
             if (_bound) {
                 throw runtime_error("Socket already bound");
             }
-            // Listen on the URL - will throw on failure
+            if (_url != url)
+                _url = url;
+
             _socket.listen(url.c_str());
+            
+            cout << "listening at: " << url << endl;
             _bound = true;
         }
 
@@ -36,6 +46,7 @@ namespace cppplumberd {
             if (!_bound) {
                 throw runtime_error("Socket not bound");
             }
+            
 
             // Using view to send data directly
             nng::view view(data.data(), data.size());

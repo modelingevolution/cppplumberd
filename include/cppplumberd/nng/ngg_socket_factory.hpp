@@ -40,20 +40,17 @@ namespace cppplumberd {
         }
 
         unique_ptr<ITransportPublishSocket> CreatePublishSocket(const string& endpoint) override {
-            auto socket = make_unique<NngPublishSocket>();
-            socket->Bind(GetFullUrl(endpoint));
+            auto socket = make_unique<NngPublishSocket>(GetFullUrl(endpoint));
             return socket;
         }
 
         unique_ptr<ITransportSubscribeSocket> CreateSubscribeSocket(const string& endpoint) override {
-            auto socket = make_unique<NngSubscribeSocket>();
-            socket->Connect(GetFullUrl(endpoint));
+            auto socket = make_unique<NngSubscribeSocket>(GetFullUrl(endpoint));
             return socket;
         }
 
         unique_ptr<ITransportReqRspClientSocket> CreateReqRspClientSocket(const string& endpoint) override {
-            auto socket = make_unique<NngReqRspClientSocket>();
-            socket->Connect(GetFullUrl(endpoint));
+            auto socket = make_unique<NngReqRspClientSocket>(GetFullUrl(endpoint));
             return socket;
         }
 

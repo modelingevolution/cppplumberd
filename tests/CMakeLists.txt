@@ -17,7 +17,7 @@ endif()
 find_package(nngpp CONFIG REQUIRED)
 
 # Add test executables
-add_executable(transport_tests transport_tests.cpp)
+add_executable(transport_tests transport_tests.cpp "ngg.cpp")
 target_link_libraries(transport_tests PRIVATE 
   ${PROJECT_NAME}
   gtest

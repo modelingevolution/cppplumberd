@@ -18,6 +18,7 @@
 #include "cppplumberd/message_serializer.hpp"
 #include "cppplumberd/message_dispatcher.hpp"
 #include "cppplumberd/nng/ngg_socket_factory.hpp"
+#include "cppplumberd/stop_watch.hpp"
 #include <memory>
 #include <string>
 #include <thread>
