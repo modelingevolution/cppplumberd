@@ -19,6 +19,8 @@
 #include "cppplumberd/message_dispatcher.hpp"
 #include "cppplumberd/nng/ngg_socket_factory.hpp"
 #include "cppplumberd/stop_watch.hpp"
+#include "proto/proto_publish_handler.hpp"
+
 #include <memory>
 #include <string>
 #include <thread>
@@ -73,20 +75,7 @@ namespace cppplumberd {
 		void Handle(const Metadata& metadata, unsigned int messageId, MessagePtr msg) override {}
 	};
 
-	/*
-	* Used by server to publish events.
-	*/
-	class ProtoPublishHandler {
-	public:
-		ProtoPublishHandler(unique_ptr<ITransportPublishSocket> socket) : _socket(move(socket)) {}
-
-		template<typename TEvent>
-		void Publish(const TEvent& evt) {}
-	private:
-		unique_ptr<ITransportPublishSocket> _socket;
-		MessageSerializer _serializer;
-	};
-
+	
 	/*
 	* Used by client to subscribe to events published.
 	*/
