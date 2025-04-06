@@ -2,9 +2,13 @@
 #include "messages.pb.h"
 #include "../../include/plumberd.hpp"
 #include "contract.h"
+#include <iostream>
+
+using namespace std;
+
 namespace app {
 	class ReactivePropertyViewModel : public cppplumberd::EventHandlerBase,
-	                                  cppplumberd::IEventHandler<app::PropertyChangedEvent>
+		public cppplumberd::IEventHandler<app::PropertyChangedEvent>
 	{
 	public:
 		ReactivePropertyViewModel()
@@ -13,21 +17,28 @@ namespace app {
 		}
 
 	private:
-		void cppplumberd::IEventHandler<app::PropertyChangedEvent>::Handle(const cppplumberd::Metadata& metadata, const app::PropertyChangedEvent& evt) override
+		void Handle(const cppplumberd::Metadata& metadata, const app::PropertyChangedEvent& evt) override
 		{
 			// Handle the property change event
-			cout << "Property changed: " << evt.property_name() << " to " << evt.value_data() << endl;
+			cout << "Property changed: " << evt.property_name() << " to " << evt.value_data().size() << " bytes" << endl;
 		}
 	};
 }
-void main() {
+
+int main() {
 	auto socketFactory = make_shared<cppplumberd::NngSocketFactory>();
-	auto plumber = cppplumberd::Plumber::CreateClient(socketFactory, "");
+	auto plumber = cppplumberd::PlumberClient::CreateClient(socketFactory, "");
 
 	app::CreateReactiveSubscriptionCommand cmd;
 	cmd.set_name("Foo");
 	plumber->CommandBus()->Send<app::CreateReactiveSubscriptionCommand>(cmd);
 
 	app::ReactivePropertyViewModel vm;
-	plumber->SubscriptionManager()->Subscribe("Foo", vm);
+	auto subscription = plumber->SubscriptionManager()->Subscribe("Foo", vm);
+
+	// Keep the program running
+	cout << "Client running. Press Enter to exit..." << endl;
+	cin.get();
+
+	return 0;
 }
