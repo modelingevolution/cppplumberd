@@ -18,10 +18,6 @@ endif()
 message(STATUS "Boost version: ${Boost_VERSION}")
 message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")
 
-find_package(nngpp CONFIG REQUIRED)
-message(STATUS "Found nngpp")
-
-
 # Define the header-only library target
 add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(${PROJECT_NAME} INTERFACE
@@ -30,20 +26,6 @@ target_include_directories(${PROJECT_NAME} INTERFACE
   $<INSTALL_INTERFACE:include>
 )
 
-# Protocol Buffers integration
-find_package(Protobuf REQUIRED)
-set(PROTO_FILES
-    include/proto/cqrs.proto
-)
-
-# Make sure output directories exist for protobuf-generated files
-file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/proto)
-
-# Generate protobuf files - pass the PROTO_FILES argument
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
-
-message(STATUS "Proto sources: ${PROTO_SRCS}")
-message(STATUS "Proto headers: ${PROTO_HDRS}")
  
 find_package(nng CONFIG REQUIRED)
 message(STATUS "Found NNG: ${nng_VERSION}")
@@ -89,7 +71,7 @@ install(FILES
   DESTINATION lib/cmake/${PROJECT_NAME}
 )
 
-
+add_subdirectory(proto)
 
 # Create an example executable that uses the library
 option(BUILD_EXAMPLES "Build examples" ON)

@@ -7,7 +7,7 @@
 #include <chrono>
 #include "cppplumberd/transport_interfaces.hpp"
 #include "cppplumberd/message_serializer.hpp"
-#include "cqrs.pb.h"
+#include "proto/cqrs.pb.h"
 
 namespace cppplumberd {
 
