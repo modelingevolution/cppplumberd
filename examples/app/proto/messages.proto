@@ -30,15 +30,15 @@ message SetterCommand {
   bytes value_data = 4;  // Serialized value according to value_type
 }
 // Command to create a subscription
-message SubscribeCommand {
-	string topic_name = 1;
-  repeated PropertySelector properties = 2;
+message StartReactiveSubscriptionCommand {
+	string name = 1;
 }
-message CreateTopicCommand {
-	string topic_name = 1;
+message CreateReactiveSubscriptionCommand {
+	string name = 1;
+	repeated PropertySelector properties = 2;
 }
 message DeleteTopicCommand {
-	string topic_name = 1;
+	string name = 1;
 }
 // Property selector for subscriptions
 message PropertySelector {

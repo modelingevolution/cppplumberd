@@ -123,13 +123,13 @@ namespace cppplumberd {
 	class EventHandlerBase : public IEventDispatcher {
 	public:
 		// we expect here that "this" implements IEventHandler<TEvent>
-		template<typename TEvent>
+		template<typename TEvent, unsigned int EventType>
 		void Map()
 		{
 			
 		}
 
-		void IEventDispatcher::Handle(const Metadata& metadata, unsigned int messageId, MessagePtr msg) override
+		inline void IEventDispatcher::Handle(const Metadata& metadata, unsigned int messageId, MessagePtr msg) override
 		{
 			
 		}
@@ -240,7 +240,7 @@ namespace cppplumberd {
 			virtual void Publish(const Metadata& m, const TEvent&);
 		};
 
-		unique_ptr<ISubscription> Subscribe(const string& streamName,shared_ptr<IEventDispatcher> handler);
+		unique_ptr<ISubscription> Subscribe(const string& streamName,const IEventDispatcher &handler);
 
 		// For client this would be low level adapters for sub-handler-> socket-subscribers.
 		// For server this would be used by IEventStore to push events to low-level publish-handler->publish-socket
@@ -280,8 +280,10 @@ namespace cppplumberd {
 		virtual unique_ptr<ITransportSubscribeSocket> CreateSubscribeSocket(const string& endpoint) = 0;
 		virtual unique_ptr<ITransportReqRspClientSocket> CreateReqRspClientSocket(const string& endpoint) = 0;
 		virtual unique_ptr<ITransportReqRspSrvSocket> CreateReqRspSrvSocket(const string& endpoint) = 0;
-		virtual ~ISocketFactory();
+		virtual ~ISocketFactory() = 0;
 	};
+	inline ISocketFactory::~ISocketFactory() {}
+
 	class HandlerFactory {
 	public:
 		HandlerFactory(shared_ptr<ISocketFactory> socketFactory);
@@ -295,49 +297,68 @@ namespace cppplumberd {
 
 	class NngSocketFactory : public ISocketFactory
 	{
-
+	public:
+		inline unique_ptr<ITransportPublishSocket> ISocketFactory::CreatePublishSocket(const string& endpoint) override { return nullptr; }
+		inline unique_ptr<ITransportSubscribeSocket> ISocketFactory::CreateSubscribeSocket(const string& endpoint) override { return nullptr; }
+		inline unique_ptr<ITransportReqRspClientSocket> ISocketFactory::CreateReqRspClientSocket(const string& endpoint) override { return nullptr; }
+		inline unique_ptr<ITransportReqRspSrvSocket> ISocketFactory::CreateReqRspSrvSocket(const string& endpoint) override { return nullptr; }
+		
+		inline ~NngSocketFactory() override = default;
 	};
 
-	class Host
+	class PlumberClient
 	{
+	protected:
 		shared_ptr<ISocketFactory> _socketFactory;
 	public:
-
-		Host(shared_ptr<ISocketFactory> factory) {
+		
+		static unique_ptr<PlumberClient> CreateClient(shared_ptr<ISocketFactory> factory, const string& endpoint)
+		{
+			return make_unique<PlumberClient>(factory);
+		}
+		PlumberClient(const shared_ptr<ISocketFactory>& factory) {
 			_socketFactory = factory;
 		}
-		template<typename TCommand, unsigned int MessageId>
-		void AddCommandHandler();
+		
+		virtual void Start();
+		virtual void Stop();
+		virtual shared_ptr<CommandBus> CommandBus()
+		{
+			return nullptr;
+		}
+		virtual shared_ptr<ISubscriptionManager> SubscriptionManager()
+		{
 
-		template<typename TCommand, unsigned int MessageId>
-		void AddCommandHandler(shared_ptr<ICommandHandler<TCommand>> cmd);
-
-		void Start();
-		void Stop();
-		shared_ptr<ISubscriptionManager> SubscriptionManager()
+		}
+	};
+	class Plumber : public PlumberClient
+	{
+		
+	public:
+		static unique_ptr<Plumber> CreateServer(shared_ptr<ISocketFactory> factory, const string& endpoint)
+		{
+			return make_unique<Plumber>(factory);
+		}
+		
+		Plumber(shared_ptr<ISocketFactory> factory) : PlumberClient(factory) {
+			
+		}
+		template<typename TCommandHandler, typename TCommand, unsigned int MessageId>
+		void AddCommandHandler()
 		{
 			
 		}
-	};
-	class Client
-	{
-		shared_ptr<ISocketFactory> _socketFactory;
-	public:
+		template<typename TEventHandler, typename TEvent, unsigned int MessageId>
+		void AddEventHandler()
+		{
 
-		Client(shared_ptr<ISocketFactory> factory) {
-			_socketFactory = factory;
 		}
-		void Start();
-		void Stop();
-		shared_ptr<CommandBus> CommandBus()
-		{
-			return nullptr;
-		}
-		shared_ptr<ISubscriptionManager> SubscriptionManager()
-		{
-			return nullptr;
-		}
+		template<typename TCommand, unsigned int MessageId>
+		void AddCommandHandler(shared_ptr<ICommandHandler<TCommand>> cmd);
+
+		
 	};
+	
 
 }
 
