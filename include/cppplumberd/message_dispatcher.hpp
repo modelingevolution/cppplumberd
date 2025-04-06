@@ -10,7 +10,7 @@
 namespace cppplumberd
 {
     using namespace std;
-    typedef void* MessagePtr;
+    typedef google::protobuf::Message* MessagePtr;
 
     template <typename TRsp, typename TMeta>
     class MessageDispatcher {

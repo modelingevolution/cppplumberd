@@ -18,6 +18,10 @@ endif()
 message(STATUS "Boost version: ${Boost_VERSION}")
 message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")
 
+find_package(nngpp CONFIG REQUIRED)
+message(STATUS "Found nngpp")
+
+
 # Define the header-only library target
 add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(${PROJECT_NAME} INTERFACE
@@ -29,6 +33,9 @@ target_include_directories(${PROJECT_NAME} INTERFACE
  
 find_package(nng CONFIG REQUIRED)
 message(STATUS "Found NNG: ${nng_VERSION}")
+
+find_package(nngpp CONFIG REQUIRED)
+message(STATUS "Found NNGPP: ${nngpp_VERSION}")
 
 # Update your target_link_libraries to include NNG
 target_link_libraries(${PROJECT_NAME} INTERFACE

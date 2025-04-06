@@ -36,14 +36,8 @@ namespace cppplumberd {
 	};
 	class ITransportReqRspSrvSocket {
 	public:
-		class IResponse
-		{
-		public:
-			virtual void Return(const string&) = 0;
-			virtual ~IResponse() = default;
-		};
 
-		virtual void Initialize(function<IResponse(const string&)>) = 0;
+		virtual void Initialize(function<string(const string&)>) = 0;
 		virtual void Bind(const string& url) = 0;
 		virtual ~ITransportReqRspSrvSocket() = default;
 	};
