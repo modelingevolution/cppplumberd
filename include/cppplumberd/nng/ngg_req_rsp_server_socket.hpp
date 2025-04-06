@@ -16,6 +16,7 @@ namespace cppplumberd {
     // NNG implementation for Request-Reply server socket using nngpp - with correct API usage
     class NngReqRspSrvSocket : public ITransportReqRspSrvSocket {
     private:
+        string _url;
         nng::socket _socket;
         bool _bound = false;
         thread _recvThread;
@@ -55,10 +56,10 @@ namespace cppplumberd {
         }
 
     public:
-        NngReqRspSrvSocket() {
+        NngReqRspSrvSocket(const string &url) : _url(url) {
             // Open a reply socket - will throw on failure 
             _socket = nng::rep::open();
-            _socket.set_opt_ms(nng::to_name(nng::option::recv_timeout), 100);
+            //_socket.set_opt_ms(nng::to_name(nng::option::recv_timeout), 100);
         }
 
         ~NngReqRspSrvSocket() override {
@@ -73,8 +74,11 @@ namespace cppplumberd {
         void ITransportReqRspSrvSocket::Initialize(function<string(const string&)> handler) override {
             _handler = handler;
         }
-
-        void Bind(const string& url) override {
+        void Start() override
+        {
+            Start(_url);
+        }
+        void Start(const string& url) override {
             if (_bound) {
                 throw runtime_error("Socket already bound");
             }

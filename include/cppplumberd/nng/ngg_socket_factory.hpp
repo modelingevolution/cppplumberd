@@ -2,6 +2,7 @@
 
 #include <string>
 #include <memory>
+#include <filesystem>
 #include <nngpp/nngpp.h>
 #include "cppplumberd/transport_interfaces.hpp"
 #include "ngg_publish_socket.hpp"
@@ -12,19 +13,30 @@
 namespace cppplumberd {
 
     using namespace std;
+    namespace fs = std::filesystem;
 
     // NNG Socket Factory implementation using nngcpp - fail fast approach
     class NngSocketFactory : public ISocketFactory {
     private:
-        string _defaultUrl;
+        string _rootUrl;
 
         string GetFullUrl(const string& endpoint) const {
-            return _defaultUrl + "/" + endpoint;
+            return _rootUrl + "/" + endpoint;
+        }
+
+        // Extract directory path from IPC URL and ensure it exists
+        void EnsureDirectoryExists(const string& url) {
+            
+            if (url.find("ipc://") == 0) {
+                string path = url.substr(6); 
+                fs::create_directories(path);
+            }
         }
 
     public:
         explicit NngSocketFactory(string defaultUrl = "ipc:///tmp/cppplumberd")
-            : _defaultUrl(std::move(defaultUrl)) {
+            : _rootUrl(std::move(defaultUrl)) {
+            EnsureDirectoryExists(_rootUrl);
         }
 
         unique_ptr<ITransportPublishSocket> CreatePublishSocket(const string& endpoint) override {
@@ -46,8 +58,7 @@ namespace cppplumberd {
         }
 
         unique_ptr<ITransportReqRspSrvSocket> CreateReqRspSrvSocket(const string& endpoint) override {
-            auto socket = make_unique<NngReqRspSrvSocket>();
-            socket->Bind(GetFullUrl(endpoint));
+            auto socket = make_unique<NngReqRspSrvSocket>(GetFullUrl(endpoint));
             return socket;
         }
     };

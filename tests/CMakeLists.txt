@@ -13,9 +13,21 @@ if(NOT GTest_FOUND)
   FetchContent_MakeAvailable(googletest)
 endif()
 
-# Add test executable
-add_executable(library_tests )
-target_link_libraries(library_tests PRIVATE ${PROJECT_NAME} gtest gtest_main)
+# Find nngpp package
+find_package(nngpp CONFIG REQUIRED)
+
+# Add test executables
+add_executable(transport_tests transport_tests.cpp)
+target_link_libraries(transport_tests PRIVATE 
+  ${PROJECT_NAME}
+  gtest
+  gtest_main
+)
+
+# Add include directories
+target_include_directories(transport_tests PRIVATE 
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
 
 # Register test
-add_test(NAME library_tests COMMAND library_tests)
+add_test(NAME transport_tests COMMAND transport_tests)

@@ -75,15 +75,17 @@ install(FILES
   DESTINATION lib/cmake/${PROJECT_NAME}
 )
 
-# Add test directory if tests are enabled
-option(BUILD_TESTS "Build tests" ON)
-if(BUILD_TESTS)
-  enable_testing()
-  #add_subdirectory(tests)
-endif()
+
 
 # Create an example executable that uses the library
 option(BUILD_EXAMPLES "Build examples" ON)
 if(BUILD_EXAMPLES)
   add_subdirectory(examples)
+endif()
+
+# Add test directory if tests are enabled
+option(BUILD_TESTS "Build tests" ON)
+if(BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
 endif()

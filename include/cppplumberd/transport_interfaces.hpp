@@ -38,7 +38,8 @@ namespace cppplumberd {
 	public:
 
 		virtual void Initialize(function<string(const string&)>) = 0;
-		virtual void Bind(const string& url) = 0;
+		virtual void Start(const string& url) = 0;
+		virtual void Start() = 0;
 		virtual ~ITransportReqRspSrvSocket() = default;
 	};
 	class ISocketFactory {
