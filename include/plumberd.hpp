@@ -13,8 +13,11 @@
 #define PLUMBERD_HPP
 
  // Include all components
+#include "cppplumberd/transport_interfaces.hpp"
 #include "cppplumberd/utils.hpp"
-#include "cppplumberd/calculator.hpp"
+#include "cppplumberd/message_serializer.hpp"
+#include "cppplumberd/message_dispatcher.hpp"
+#include "cppplumberd/nng/ngg_socket_factory.hpp"
 #include <memory>
 #include <string>
 #include <thread>
@@ -41,70 +44,6 @@ namespace cppplumberd {
 		}
 	};
 
-
-	class ITransportPublishSocket {
-	public:
-		virtual void Bind(const string& url) = 0;
-		virtual void Send(const string& data) = 0;
-		virtual ~ITransportPublishSocket() = default;
-	};
-	class ITransportSubscribeSocket {
-	public:
-		using ReceivedSignal = signal<void(const string&)>;
-		ReceivedSignal Received;
-
-		virtual void Connect(const string& url) = 0;
-
-		virtual ~ITransportSubscribeSocket() = default;
-	};
-	class ITransportReqRspClientSocket {
-	public:
-		virtual string Send(const string& data) = 0;
-		virtual void Connect(const string& url) = 0;
-		virtual ~ITransportReqRspClientSocket() = default;
-	};
-	class ITransportReqRspSrvSocket {
-	public:
-		class IResponse
-		{
-		public:
-			virtual void Return(const string&) = 0;
-			virtual ~IResponse() = default;
-		};
-
-		virtual void Initialize(function<IResponse(const string&)>) = 0;
-		virtual void Bind(const string& url) = 0;
-		virtual ~ITransportReqRspSrvSocket() = default;
-	};
-
-	class MessageSerializer {
-	public:
-		template<typename TMessage, unsigned int MessageId>
-		void RegisterMessage() {}
-
-		template<typename TMessage>
-		TMessage Deserialize(const string& data) const { return {}; }
-
-		template<typename TMessage>
-		string Serialize(const TMessage& msg) const { return ""; }
-	};
-
-	typedef void* MessagePtr;
-
-	template <typename TRsp, typename TMeta>
-	class MessageDispatcher {
-	protected:
-		template<typename TMessage, unsigned int MessageId>
-		void RegisterHandler(function<TRsp(const TMeta&, const TMessage&)> handler) {}
-
-		void Handle(const TMeta&, unsigned int messageId, MessagePtr msg) {}
-
-		template<typename TMessage>
-		void Handle(const TMeta&, const TMessage& msg) {}
-
-		template<typename TMessage, unsigned int MessageId>
-		void RegisterMessage() {}
-	};
 
 	class Metadata
 	{
@@ -276,14 +215,7 @@ namespace cppplumberd {
 		unique_ptr<ProtoReqRspClientHandler> _handler;
 	};
 
-	class ISocketFactory {
-	public:
-		virtual unique_ptr<ITransportPublishSocket> CreatePublishSocket(const string& endpoint) = 0;
-		virtual unique_ptr<ITransportSubscribeSocket> CreateSubscribeSocket(const string& endpoint) = 0;
-		virtual unique_ptr<ITransportReqRspClientSocket> CreateReqRspClientSocket(const string& endpoint) = 0;
-		virtual unique_ptr<ITransportReqRspSrvSocket> CreateReqRspSrvSocket(const string& endpoint) = 0;
-		virtual ~ISocketFactory() = default;
-	};
+	
 
 	class HandlerFactory {
 	public:
@@ -297,14 +229,7 @@ namespace cppplumberd {
 		shared_ptr<ISocketFactory> _socketFactory;
 	};
 
-	class NngSocketFactory : public ISocketFactory
-	{
-	public:
-		unique_ptr<ITransportPublishSocket> CreatePublishSocket(const string& endpoint) override { return nullptr; }
-		unique_ptr<ITransportSubscribeSocket> CreateSubscribeSocket(const string& endpoint) override { return nullptr; }
-		unique_ptr<ITransportReqRspClientSocket> CreateReqRspClientSocket(const string& endpoint) override { return nullptr; }
-		unique_ptr<ITransportReqRspSrvSocket> CreateReqRspSrvSocket(const string& endpoint) override { return nullptr; }
-	};
+	
 
 	class PlumberClient
 	{

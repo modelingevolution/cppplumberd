@@ -13,6 +13,11 @@ set_target_properties(server PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 
+# Find and link NNG library
+find_package(nng CONFIG REQUIRED)
+target_link_libraries(client PRIVATE nng::nng)
+target_link_libraries(server PRIVATE nng::nng)
+
 # Protocol Buffers integration
 find_package(Protobuf REQUIRED)
 set(PROTO_FILES

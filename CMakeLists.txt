@@ -26,9 +26,13 @@ target_include_directories(${PROJECT_NAME} INTERFACE
   $<INSTALL_INTERFACE:include>
 )
 
+ 
+find_package(nng CONFIG REQUIRED)
+message(STATUS "Found NNG: ${nng_VERSION}")
 
+# Update your target_link_libraries to include NNG
 target_link_libraries(${PROJECT_NAME} INTERFACE
-  
+  nng::nng
 )
 
 # Installation
