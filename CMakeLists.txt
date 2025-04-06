@@ -20,7 +20,7 @@ message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")
 
 # Define the header-only library target
 add_library(${PROJECT_NAME} INTERFACE)
-target_include_directories(${PROJECT_NAME} INTERFACE
+target_include_directories(${PROJECT_NAME} INTERFACE 
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${Boost_INCLUDE_DIRS}>
   $<INSTALL_INTERFACE:include>
@@ -56,7 +56,7 @@ configure_package_config_file(
   ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
   INSTALL_DESTINATION lib/cmake/${PROJECT_NAME}
 )
-
+ 
 # Create version file
 write_basic_package_version_file(
   ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
@@ -71,7 +71,7 @@ install(FILES
   DESTINATION lib/cmake/${PROJECT_NAME}
 )
 
-add_subdirectory(proto)
+add_subdirectory(proto)  
 
 # Create an example executable that uses the library
 option(BUILD_EXAMPLES "Build examples" ON)

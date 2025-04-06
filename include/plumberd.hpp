@@ -19,7 +19,7 @@
 #include "cppplumberd/message_dispatcher.hpp"
 #include "cppplumberd/nng/ngg_socket_factory.hpp"
 #include "cppplumberd/stop_watch.hpp"
-#include "proto/proto_publish_handler.hpp"
+#include "cppplumberd/proto_publish_handler.hpp"
 
 #include <memory>
 #include <string>

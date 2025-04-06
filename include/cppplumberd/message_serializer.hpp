@@ -6,7 +6,6 @@
 #include <typeindex>
 #include <functional>
 #include <typeinfo>
-#include <tuple>
 #include <concepts>
 #include <google/protobuf/message.h>
 
@@ -15,7 +14,6 @@
 namespace cppplumberd
 {
     using namespace std;
-    
 
     // Concept that requires ParseFromString method
     template<typename T>
@@ -24,6 +22,53 @@ namespace cppplumberd
     };
 
     class MessageSerializer {
+    private:
+        // Nested class to store message type information
+        class MessageTypeInfo {
+        public:
+            type_index typeIdx;
+            function<MessagePtr()> factory;
+
+            // Constructor for direct initialization
+            MessageTypeInfo(type_index idx, function<MessagePtr()> func)
+                : typeIdx(idx), factory(func) {
+            }
+
+            // Default constructor for map compatibility
+            MessageTypeInfo()
+                : typeIdx(typeid(void)), factory(nullptr) {
+            }
+
+            // Copy constructor
+            MessageTypeInfo(const MessageTypeInfo& other)
+                : typeIdx(other.typeIdx), factory(other.factory) {
+            }
+
+            // Move constructor
+            MessageTypeInfo(MessageTypeInfo&& other) noexcept
+                : typeIdx(other.typeIdx), factory(std::move(other.factory)) {
+            }
+
+            // Copy assignment
+            MessageTypeInfo& operator=(const MessageTypeInfo& other) {
+                typeIdx = other.typeIdx;
+                factory = other.factory;
+                return *this;
+            }
+
+            // Move assignment
+            MessageTypeInfo& operator=(MessageTypeInfo&& other) noexcept {
+                typeIdx = other.typeIdx;
+                factory = std::move(other.factory);
+                return *this;
+            }
+
+            // Create a new instance of the message
+            MessagePtr CreateMessage() const {
+                return factory();
+            }
+        };
+
     public:
         template<typename TMessage, unsigned int MessageId>
             requires HasParseFromString<TMessage>
@@ -33,7 +78,7 @@ namespace cppplumberd
                 throw runtime_error("Message ID already registered");
             }
 
-            _messageIdMap[MessageId] = make_tuple(
+            _messageIdMap[MessageId] = MessageTypeInfo(
                 typeIdx,
                 []() -> MessagePtr { return new TMessage(); }
             );
@@ -44,9 +89,9 @@ namespace cppplumberd
             if (it == _messageIdMap.end()) {
                 throw runtime_error("Message ID not registered");
             }
-            const auto& r = it->second;
+            const auto& typeInfo = it->second;
 
-            MessagePtr msg = get<1>(r)();
+            MessagePtr msg = typeInfo.CreateMessage();
             if (!msg->ParseFromString(data)) {
                 throw runtime_error("Failed to parse message");
             }
@@ -63,6 +108,6 @@ namespace cppplumberd
             return result;
         }
     private:
-        map<unsigned int, tuple<type_index, function<MessagePtr()>>> _messageIdMap;
+        map<unsigned int, MessageTypeInfo> _messageIdMap;
     };
 }
