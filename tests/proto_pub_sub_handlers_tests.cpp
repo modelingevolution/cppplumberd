@@ -4,14 +4,15 @@
 #include <memory>
 #include <string>
 #include "plumberd.hpp"
-
-#include "examples/app/messages.pb.h" // Include the actual app messages
+#include "proto/test_msgs.pb.h"
 #include "proto/cqrs.pb.h"
+
+
 
 using namespace cppplumberd;
 using namespace std;
 using namespace testing;
-using namespace app; // For the real app messages
+
 
 // Mock for ITransportPublishSocket
 class MockTransportPublishSocket : public ITransportPublishSocket {

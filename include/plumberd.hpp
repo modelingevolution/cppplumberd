@@ -20,6 +20,7 @@
 #include "cppplumberd/nng/ngg_socket_factory.hpp"
 #include "cppplumberd/stop_watch.hpp"
 #include "cppplumberd/proto_publish_handler.hpp"
+#include "cppplumberd/proto_subscribe_handler.hpp"
 
 #include <memory>
 #include <string>
@@ -76,22 +77,7 @@ namespace cppplumberd {
 	};
 
 	
-	/*
-	* Used by client to subscribe to events published.
-	*/
-	class ProtoSubscribeHandler {
-	public:
-		ProtoSubscribeHandler(unique_ptr<ITransportSubscribeSocket> socket) : _socket(move(socket)) {}
-
-		template<typename TEvent, unsigned int EventId>
-		void RegisterHandler(function<void(const time_point<system_clock>&, const TEvent&)> handler) {}
-
-		void Start() {}
-		void Stop() {}
-	private:
-		unique_ptr<ITransportSubscribeSocket> _socket;
-		MessageDispatcher<void, Metadata> _msgDispatcher;
-	};
+	
 
 	/*
 	* Used by client to send requests to server and receive responses.

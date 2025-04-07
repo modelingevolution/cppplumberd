@@ -5,9 +5,11 @@
 #include <typeindex>
 #include <unordered_map>
 #include <chrono>
+#include <array>
 #include "cppplumberd/transport_interfaces.hpp"
 #include "cppplumberd/message_serializer.hpp"
 #include "proto/cqrs.pb.h"
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 
 namespace cppplumberd {
 
@@ -15,7 +17,6 @@ namespace cppplumberd {
     public:
         explicit ProtoPublishHandler(std::unique_ptr<ITransportPublishSocket> socket)
             : _socket(std::move(socket)) {
-
             if (!_socket) {
                 throw std::invalid_argument("Socket cannot be null");
             }
@@ -42,8 +43,14 @@ namespace cppplumberd {
                 throw std::runtime_error("Event type not registered: " + std::string(typeid(TEvent).name()));
             }
 
-            // Serialize the event payload
-            std::string eventPayload = _serializer.Serialize(evt);
+            // Allocate a 64KB buffer on the stack
+            std::array<uint8_t, 64 * 1024> buffer;
+
+            // Get a uint32_t pointer to the buffer for easier size field access
+            uint32_t* sizePtr = reinterpret_cast<uint32_t*>(buffer.data());
+
+            // Reserve first 8 bytes for header size and payload size
+            size_t offset = 8;
 
             // Prepare header
             EventHeader header;
@@ -51,16 +58,39 @@ namespace cppplumberd {
                 std::chrono::system_clock::now().time_since_epoch()).count());
             header.set_event_type(it->second);
 
-            // Serialize header
-            std::string headerData;
-            if (!header.SerializeToString(&headerData)) {
+            // Serialize header directly to buffer (after the size fields)
+            google::protobuf::io::ArrayOutputStream headerArrayStream(buffer.data() + offset, buffer.size() - offset);
+            if (!header.SerializeToZeroCopyStream(&headerArrayStream)) {
                 throw std::runtime_error("Failed to serialize event header");
             }
 
-            // Combine header and payload
-            std::string message = headerData + eventPayload;
+            // Get the header size and store in the first 4 bytes
+            uint32_t headerSize = static_cast<uint32_t>(headerArrayStream.ByteCount());
+            sizePtr[0] = headerSize;
 
-            // Send the message
+            // Update offset past the serialized header
+            offset += headerSize;
+
+            // Serialize payload directly to buffer
+            google::protobuf::io::ArrayOutputStream payloadArrayStream(buffer.data() + offset, buffer.size() - offset);
+            if (!evt.SerializeToZeroCopyStream(&payloadArrayStream)) {
+                throw std::runtime_error("Failed to serialize event payload");
+            }
+
+            // Get the payload size and store in the second 4 bytes
+            uint32_t payloadSize = static_cast<uint32_t>(payloadArrayStream.ByteCount());
+            sizePtr[1] = payloadSize;
+
+            // Check if we've exceeded buffer size
+            if (offset + payloadSize > buffer.size()) {
+                throw std::runtime_error("Message too large for buffer");
+            }
+
+            // Update offset past the serialized payload
+            offset += payloadSize;
+
+            // Send the framed message
+            std::string message(reinterpret_cast<char*>(buffer.data()), offset);
             _socket->Send(message);
         }
 

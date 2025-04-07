@@ -35,13 +35,13 @@ target_link_libraries(transport_tests PRIVATE
 
 # ProtoPublishHandler test executable
 add_executable(proto_publish_handler_tests
-  proto_publish_handler_tests.cpp
+  "proto_pub_sub_handlers_tests.cpp"
 )
 
 # Protocol Buffers integration
 find_package(Protobuf REQUIRED)
 set(PROTO_FILES
-    proto/messages.proto
+    proto/test_msgs.proto
 )
 
 # Make sure output directories exist for protobuf-generated files
@@ -59,9 +59,6 @@ add_library(proto_test_messages STATIC ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(proto_test_messages PUBLIC protobuf::libprotobuf)
 target_include_directories(proto_test_messages PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
-# Link the proto library to client and server
-target_link_libraries(proto_publish_handler_tests PRIVATE proto_test_messages)
-
 # Explicitly add dependency to ensure cppplumberd-messages is built first
 add_dependencies(proto_publish_handler_tests cppplumberd-messages)
 
@@ -69,6 +66,7 @@ add_dependencies(proto_publish_handler_tests cppplumberd-messages)
 target_link_libraries(proto_publish_handler_tests PRIVATE
   ${PROJECT_NAME}
   cppplumberd-messages
+  proto_test_messages
   gtest
   gtest_main
   gmock
@@ -80,6 +78,7 @@ target_link_libraries(proto_publish_handler_tests PRIVATE
 target_include_directories(transport_tests PRIVATE 
   ${CMAKE_CURRENT_SOURCE_DIR}/../include
   ${CMAKE_CURRENT_BINARY_DIR}/../ # For generated protobuf headers
+  ${PROTO_HDRS}
 )
 
 target_include_directories(proto_publish_handler_tests PRIVATE
