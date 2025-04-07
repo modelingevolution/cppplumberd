@@ -19,8 +19,11 @@
 #include "cppplumberd/message_dispatcher.hpp"
 #include "cppplumberd/nng/ngg_socket_factory.hpp"
 #include "cppplumberd/stop_watch.hpp"
+#include "cppplumberd/fault_exception.hpp"
 #include "cppplumberd/proto_publish_handler.hpp"
 #include "cppplumberd/proto_subscribe_handler.hpp"
+#include "cppplumberd/proto_req_rsp_srv_handler.hpp"
+#include "cppplumberd/proto_req_rsp_client_handler.hpp"
 
 #include <memory>
 #include <string>
@@ -76,42 +79,8 @@ namespace cppplumberd {
 		void Handle(const Metadata& metadata, unsigned int messageId, MessagePtr msg) override {}
 	};
 
+
 	
-	
-
-	/*
-	* Used by client to send requests to server and receive responses.
-	*/
-	class ProtoReqRspClientHandler {
-	public:
-		ProtoReqRspClientHandler(unique_ptr<ITransportReqRspClientSocket> socket) : _socket(move(socket)) {}
-
-		template<typename TReq, unsigned int ReqId, typename TRsp, unsigned int RspId>
-		void RegisterRequestResponse() {}
-
-		template<typename TReq, typename TRsp>
-		TRsp Send(const TReq& evt) { return {}; }
-	private:
-		MessageSerializer _serializer;
-		unique_ptr<ITransportReqRspClientSocket> _socket;
-	};
-
-	/*
-	* Used by server to handle requests from clients and send responses.
-	*/
-	class ProtoReqRspSrvHandler {
-	public:
-		ProtoReqRspSrvHandler(unique_ptr<ITransportReqRspSrvSocket> socket) : _socket(move(socket)) {}
-
-		template<typename TReq, unsigned int ReqId, typename TRsp, unsigned int RspId>
-		void RegisterHandler(function<TRsp(const TReq&)> f) {}
-
-		void Start() {}
-		void Stop() {}
-	private:
-		unique_ptr<ITransportReqRspSrvSocket> _socket;
-	};
-
 	template<typename T>
 	concept TException = requires(T t) {
 		{ t.ErrorCode() } -> same_as<unsigned short>;

@@ -11,7 +11,7 @@ message CommandHeader {
 message CommandResponse {
   uint32 status_code = 1;
   string error_message = 2;
-  
+  uint32 response_type = 3; // 0 means void, if > 0, than it the MessageId.
 }
 
 message EventHeader {

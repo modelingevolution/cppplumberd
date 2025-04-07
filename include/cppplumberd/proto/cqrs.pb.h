@@ -424,6 +424,7 @@ class CommandResponse final : public ::google::protobuf::Message
   enum : int {
     kErrorMessageFieldNumber = 2,
     kStatusCodeFieldNumber = 1,
+    kResponseTypeFieldNumber = 3,
   };
   // string error_message = 2;
   void clear_error_message() ;
@@ -451,12 +452,22 @@ class CommandResponse final : public ::google::protobuf::Message
   void _internal_set_status_code(::uint32_t value);
 
   public:
+  // uint32 response_type = 3;
+  void clear_response_type() ;
+  ::uint32_t response_type() const;
+  void set_response_type(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_response_type() const;
+  void _internal_set_response_type(::uint32_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:cppplumberd.CommandResponse)
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
   static const ::google::protobuf::internal::TcParseTable<
-      1, 2, 0,
+      2, 3, 0,
       49, 2>
       _table_;
 
@@ -476,6 +487,7 @@ class CommandResponse final : public ::google::protobuf::Message
                           const CommandResponse& from_msg);
     ::google::protobuf::internal::ArenaStringPtr error_message_;
     ::uint32_t status_code_;
+    ::uint32_t response_type_;
     ::google::protobuf::internal::CachedSize _cached_size_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
@@ -783,6 +795,28 @@ inline void CommandResponse::set_allocated_error_message(std::string* value) {
     _impl_.error_message_.Set("", GetArena());
   }
   // @@protoc_insertion_point(field_set_allocated:cppplumberd.CommandResponse.error_message)
+}
+
+// uint32 response_type = 3;
+inline void CommandResponse::clear_response_type() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.response_type_ = 0u;
+}
+inline ::uint32_t CommandResponse::response_type() const {
+  // @@protoc_insertion_point(field_get:cppplumberd.CommandResponse.response_type)
+  return _internal_response_type();
+}
+inline void CommandResponse::set_response_type(::uint32_t value) {
+  _internal_set_response_type(value);
+  // @@protoc_insertion_point(field_set:cppplumberd.CommandResponse.response_type)
+}
+inline ::uint32_t CommandResponse::_internal_response_type() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.response_type_;
+}
+inline void CommandResponse::_internal_set_response_type(::uint32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.response_type_ = value;
 }
 
 // -------------------------------------------------------------------

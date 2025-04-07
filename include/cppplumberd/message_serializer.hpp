@@ -20,6 +20,10 @@ namespace cppplumberd
     concept HasParseFromString = requires(T t, const string & s) {
         { t.ParseFromString(s) } -> same_as<bool>;
     };
+    template<typename T>
+    concept HasSerializeToZeroCopyStream = requires(T t, const string & s) {
+        { t.SerializeToZeroCopyStream(s) } -> same_as<bool>;
+    };
 
     class MessageSerializer {
     private:
@@ -73,17 +77,29 @@ namespace cppplumberd
         template<typename TMessage, unsigned int MessageId>
             requires HasParseFromString<TMessage>
         inline void RegisterMessage() {
-            auto typeIdx = type_index(typeid(TMessage));
+	        type_index typeIdx = type_index(typeid(TMessage));
             if (_messageIdMap.find(MessageId) != _messageIdMap.end()) {
                 throw runtime_error("Message ID already registered");
             }
-
+            _typeIdMap[typeIdx] = MessageId;
             _messageIdMap[MessageId] = MessageTypeInfo(
                 typeIdx,
                 []() -> MessagePtr { return new TMessage(); }
             );
         }
+        inline MessagePtr Deserialize(const void* data, const size_t size, const unsigned int messageId) const {
+            auto it = _messageIdMap.find(messageId);
+            if (it == _messageIdMap.end()) {
+                throw runtime_error("Message ID not registered");
+            }
+            const auto& typeInfo = it->second;
 
+            MessagePtr msg = typeInfo.CreateMessage();
+            if (!msg->ParseFromArray(data, size)) {
+                throw runtime_error("Failed to parse message");
+            }
+            return msg;
+        }
         inline MessagePtr Deserialize(const string& data, const unsigned int messageId) const {
             auto it = _messageIdMap.find(messageId);
             if (it == _messageIdMap.end()) {
@@ -97,6 +113,40 @@ namespace cppplumberd
             }
             return msg;
         }
+        template<typename TMessage>
+        inline unsigned int GetMessageId() { return _typeIdMap[type_index(typeid(TMessage))]; }
+      
+        template<typename TMessage>
+            requires HasSerializeToZeroCopyStream<TMessage>
+
+        inline void Serialize(const TMessage& message, uint8_t* buffer, size_t offset, size_t bufferSize) const {
+            google::protobuf::io::ArrayOutputStream arrayStream(buffer + offset, bufferSize - offset);
+            
+            if (!message.SerializeToZeroCopyStream(&arrayStream)) {
+                throw std::runtime_error("Failed to serialize message");
+            }
+            
+        }
+
+        inline void Serialize(const MessagePtr ptr, uint8_t* buffer, size_t offset, size_t size)
+        {
+            // Create a zero-copy output stream over the buffer starting at the offset
+            google::protobuf::io::ArrayOutputStream arrayStream(buffer + offset, size);
+
+            // Serialize the message to the zero-copy stream
+            if (!ptr->SerializeToZeroCopyStream(&arrayStream)) {
+                throw std::runtime_error("Failed to serialize message");
+            }
+        }
+
+        inline string Serialize(const MessagePtr ptr) const {
+            string result;
+            
+            if (!ptr->SerializeToString(&result)) {
+                throw runtime_error("Failed to serialize message");
+            }
+            return result;
+        }
 
         template<typename TMessage>
             requires HasParseFromString<TMessage>
@@ -109,5 +159,6 @@ namespace cppplumberd
         }
     private:
         map<unsigned int, MessageTypeInfo> _messageIdMap;
+        map< type_index, unsigned int> _typeIdMap;
     };
 }

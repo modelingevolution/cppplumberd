@@ -50,7 +50,7 @@ foreach(HEADER ${PROTO_HDRS})
     get_filename_component(HEADER_FILENAME ${HEADER} NAME)
     add_custom_command(
         TARGET cppplumberd-messages
-        POST_BUILD
+        PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 ${HEADER}
                 "${PROTO_INCLUDE_DIR}/${HEADER_FILENAME}"
@@ -58,7 +58,7 @@ foreach(HEADER ${PROTO_HDRS})
     )
 endforeach()
 
-# Add include directory for generated files
+# Add include directory for generated files 
 target_include_directories(cppplumberd-messages
     PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}

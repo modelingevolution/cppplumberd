@@ -14,9 +14,9 @@ namespace cppplumberd
 
     template <typename TRsp, typename TMeta>
     class MessageDispatcher {
-    protected:
+    public:
         // Maps message IDs to handler functions that take a Message* and return TRsp
-        unordered_map<unsigned int, function<TRsp(const TMeta&, const MessagePtr*)>> _handlers;
+        unordered_map<unsigned int, function<TRsp(const TMeta&, MessagePtr)>> _handlers;
 
         // Maps message IDs to their type_index for type checking
         unordered_map<unsigned int, type_index> _messageTypes;
@@ -34,7 +34,7 @@ namespace cppplumberd
             _typeToIdMap[type_index(typeid(TMessage))] = MessageId;
 
             // Create an adapter function that downcasts the Message* to TMessage*
-            _handlers[MessageId] = [handler](const TMeta& metadata, const MessagePtr* msg) -> TRsp {
+            _handlers[MessageId] = [handler](const TMeta& metadata, MessagePtr msg) -> TRsp {
                 // Ensure the message is of the expected type
                 const TMessage* typedMsg = dynamic_cast<const TMessage*>(msg);
                 if (!typedMsg) {

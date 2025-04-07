@@ -156,6 +156,7 @@ TEST_F(PublishSubscribeIntegrationTest, PublishEventIsReceivedBySubscriber) {
     auto now = system_clock::now();
     EXPECT_LE(lastReceivedTimestamp, now);
     EXPECT_GE(lastReceivedTimestamp, now - minutes(1)); // Should be recent
+    cout << "DONE" << endl;
 }
 
 TEST_F(PublishSubscribeIntegrationTest, HandlesMultipleEvents) {
@@ -253,6 +254,7 @@ TEST_F(PublishSubscribeIntegrationTest, HandlesMultipleEvents) {
         memcpy(&receivedValue, receivedEvents[i].value_data().data(), sizeof(int));
         EXPECT_EQ(receivedValue, sentValue);
     }
+    cout << "DONE" << endl;
 }
 
 // Additional test case ideas:
