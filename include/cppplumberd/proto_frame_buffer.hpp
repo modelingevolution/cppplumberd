@@ -19,12 +19,18 @@ namespace cppplumberd {
         uint8_t _buffer[size];
         size_t _size = 0;
         size_t _offset = 0;
-        unique_ptr<MessageSerializer> _serializer;
+        shared_ptr<MessageSerializer> _serializer ;
+
+
     public:
+        inline ProtoFrameBuffer(shared_ptr<MessageSerializer> s) :_serializer(s) {
+        }
         inline size_t Size() const { return _size; }
         inline uint8_t* Get() const { return _buffer; }
+        inline size_t FreeBytes() const { return size - _size; }
+        
 
-        template<typename THeader, unsigned int THeaderType, typename TMsg, unsigned int TMsgType>
+        template<typename THeader, typename TMsg>
         inline void Write(const THeader& header, const TMsg& msg)
         {
             // Reset buffer
@@ -64,20 +70,21 @@ namespace cppplumberd {
                 throw std::runtime_error("Message too large for buffer");
             }
         }
-
+        inline void AckWritten(size_t size)
+        {
+            _size = size;
+        }
 
         template<typename THeader>
-        inline void Read(const uint8_t* externalBuffer, size_t bufferSize,
-            function<unsigned int(THeader&)> payloadMessageIdSelector,
-            MessagePtr& headerPtr, MessagePtr& msgPtr)
+        inline unique_ptr<THeader> Read(function<unsigned int(THeader&)> payloadMessageIdSelector, MessagePtr& msgPtr)
         {
             // Check if buffer is large enough for header and payload sizes
-            if (bufferSize < 8) {
-                throw std::runtime_error("Buffer too small: " + std::to_string(bufferSize) + " bytes");
+            if (_size < 8) {
+                throw std::runtime_error("Buffer too small");
             }
 
             // Get pointer to the first 8 bytes containing sizes
-            const uint32_t* sizePtr = reinterpret_cast<const uint32_t*>(externalBuffer);
+            const uint32_t* sizePtr = reinterpret_cast<const uint32_t*>(_buffer);
 
             // Extract header and payload sizes
             uint32_t headerSize = sizePtr[0];
@@ -85,33 +92,32 @@ namespace cppplumberd {
 
             // Validate total size
             size_t totalExpectedSize = 8 + headerSize + payloadSize;
-            if (bufferSize < totalExpectedSize) {
+            if (_size < totalExpectedSize) {
                 throw std::runtime_error("Buffer truncated: expected " +
                     std::to_string(totalExpectedSize) +
                     " bytes, got " +
-                    std::to_string(bufferSize));
+                    std::to_string(_size));
             }
 
             // Extract header bytes (after the 8-byte size header)
-            const char* headerBytes = reinterpret_cast<const char*>(externalBuffer + 8);
+            const char* headerBytes = reinterpret_cast<const char*>(_size + 8);
 
             // First create and parse header to determine payload type
-            THeader typedHeader;
-            if (!typedHeader.ParseFromArray(headerBytes, headerSize)) {
+            unique_ptr<THeader> typedHeader = make_unique<THeader>();
+            if (!typedHeader->ParseFromArray(headerBytes, headerSize)) {
                 throw std::runtime_error("Failed to parse header");
             }
 
             // Use the selector function to determine payload message type
             unsigned int payloadType = payloadMessageIdSelector(typedHeader);
 
-            // Now create the headerPtr from the parsed header
-            headerPtr = new THeader(typedHeader);
 
             // Extract payload bytes (after header)
             const char* payloadBytes = headerBytes + headerSize;
 
             // Parse payload using MessageSerializer with the determined type
             msgPtr = _serializer->Deserialize(payloadBytes, payloadSize, payloadType);
+            return typedHeader;
         }
     };
 }

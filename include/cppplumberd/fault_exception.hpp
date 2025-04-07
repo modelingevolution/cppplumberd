@@ -39,6 +39,14 @@ namespace cppplumberd {
             _messageTypeId(messageTypeId) {
             _errorDetails = new TMsg(std::forward<Args>(args)...);
         }
+        TypedFaultException(unsigned int messageTypeId,
+            unsigned int errorCode,
+            const string& message,
+            TMsg* details)
+            : FaultException(message, errorCode),
+            _messageTypeId(messageTypeId) {
+            _errorDetails = details;
+        }
 
         const TMsg& ErrorDetails() const { return _errorDetails; }
 

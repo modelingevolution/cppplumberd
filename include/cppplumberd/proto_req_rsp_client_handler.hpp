@@ -8,122 +8,99 @@
 #include "cppplumberd/transport_interfaces.hpp"
 #include "cppplumberd/message_serializer.hpp"
 #include "cppplumberd/fault_exception.hpp"
+#include "cppplumberd/proto_frame_buffer.hpp"
 #include "proto/cqrs.pb.h"
-#include "proto_frame_buffer.hpp"
 
 namespace cppplumberd {
 
-    
     class ProtoReqRspClientHandler {
     private:
         std::unique_ptr<ITransportReqRspClientSocket> _socket;
-        MessageSerializer _serializer;
+        std::shared_ptr<MessageSerializer> _serializer;
         bool _connected = false;
 
         // Map of message types to exception factories
         std::unordered_map<unsigned int, std::function<void(const std::string&, MessagePtr, unsigned int)>> _exceptionFactories;
 
-        // Helper method to create a framed request message
-        std::string CreateRequestMessage(unsigned int commandType, const std::string& payload) {
-            // Create command header
-            CommandHeader header;
-            header.set_command_type(commandType);
-
-            // Serialize header
-            std::string headerData;
-            header.SerializeToString(&headerData);
-
-            // Create framed message (8 bytes for sizes + header + payload)
-            std::vector<uint8_t> framedMessage(8 + headerData.size() + payload.size());
-            uint32_t* sizePtr = reinterpret_cast<uint32_t*>(framedMessage.data());
-            sizePtr[0] = headerData.size();
-            sizePtr[1] = payload.size();
-
-            // Copy header and payload data
-            std::memcpy(framedMessage.data() + 8, headerData.data(), headerData.size());
-            if (!payload.empty()) {
-                std::memcpy(framedMessage.data() + 8 + headerData.size(), payload.data(), payload.size());
-            }
-
-            return std::string(reinterpret_cast<char*>(framedMessage.data()), framedMessage.size());
-        }
-
-        // Parse and process response
+        // Helper method to process response using ProtoFrameBuffer
         template<typename TRsp>
-        TRsp ProcessResponse(const std::string& responseData) {
-            // Response must be at least 8 bytes (for header and payload sizes)
-            if (responseData.size() < 8) {
+        TRsp ProcessResponse(const ProtoFrameBuffer<64 * 1024>& frameBuffer) {
+            if (frameBuffer.Size() < 8) {
                 throw std::runtime_error("Response too short");
             }
 
-            // Extract sizes
-            const uint32_t* sizePtr = reinterpret_cast<const uint32_t*>(responseData.data());
-            uint32_t headerSize = sizePtr[0];
-            uint32_t payloadSize = sizePtr[1];
 
-            // Validate total size
-            if (responseData.size() < 8 + headerSize + payloadSize) {
-                throw std::runtime_error("Response truncated");
-            }
+            // Use a selector function that extracts the message type from the response header
+            auto responseTypeSelector = [](const CommandResponse& header) -> unsigned int {
+                // Return 0 if no response type (for void responses) or the actual response type
+                return header.response_type();
+                };
 
-            // Parse command response header
-            CommandResponse response;
-            if (!response.ParseFromArray(responseData.data() + 8, headerSize)) {
-                throw std::runtime_error("Failed to parse command response");
-            }
+            // Parse using ProtoFrameBuffer
+            
+            MessagePtr payloadPtr = nullptr;
 
-            // Check for errors
-            if (response.status_code() != 0) {
-                // Extract error payload if available
-                if (response.response_type() > 0 && payloadSize > 0) {
-                    // There's a typed error to deserialize
-                    const char* payloadData = responseData.data() + 8 + headerSize;
-                    std::string payload(payloadData, payloadSize);
+            try {
+                
+                auto response = frameBuffer.Read<CommandResponse>(responseTypeSelector,payloadPtr);
+                if (!response) {
+                    delete payloadPtr;
+                    throw std::runtime_error("Failed to parse command response header");
+                }
 
-                    // Use serializer to deserialize the error
-                    MessagePtr errorMsg = _serializer.Deserialize(payload, response.response_type());
+                // Check for errors
+                if (response->status_code() != 0) {
+                    
+                    std::string errorMsg = response->error_message();
+                    auto status = response->status_code();
 
-                    // Find the exception factory for this error type
-                    auto factoryIt = _exceptionFactories.find(response.response_type());
-                    if (factoryIt != _exceptionFactories.end()) {
-                        // Create and throw the appropriate exception
-                        factoryIt->second(response.error_message(), errorMsg, response.status_code());
+                    if (payloadPtr != nullptr) {
+                        // Find the exception factory for this error type
+                        auto factoryIt = _exceptionFactories.find(response->response_type());
+                        if (factoryIt != _exceptionFactories.end()) {
+                            factoryIt->second(errorMsg, payloadPtr, status);
+                            // Should never reach here
+                        }
 
-                        // Should never reach here, but just in case
-                        delete errorMsg;
+                        delete payloadPtr;
+                        payloadPtr = nullptr;
                     }
 
-                    // No factory found, clean up and throw generic exception
-                    delete errorMsg;
+                    throw FaultException(errorMsg,status);
                 }
 
-                // Generic error with no details
-                throw std::runtime_error("Server error: " + response.error_message());
-            }
+                // Process successful response
+                if (payloadPtr != nullptr) {
+                    // Try to cast to the expected response type
+                    TRsp* typedResponse = dynamic_cast<TRsp*>(payloadPtr);
+                    if (!typedResponse) {
+                        delete payloadPtr;
+                        throw std::runtime_error("Response type mismatch");
+                    }
 
-            // Process successful response
-            if (payloadSize > 0) {
-                // Extract payload
-                const char* payloadData = responseData.data() + 8 + headerSize;
-                std::string payload(payloadData, payloadSize);
+                    // Make a copy of the response before deleting the pointers
+                    TRsp result = *typedResponse;
 
-                // Deserialize to the expected response type
-                TRsp responsObj;
-                if (!responsObj.ParseFromString(payload)) {
-                    throw std::runtime_error("Failed to parse response payload");
+                    // Clean up
+                    delete payloadPtr;
+
+                    return result;
                 }
-
-                return responsObj;
+                else {
+                    // Empty response (void)
+                    return TRsp();
+                }
             }
-            else {
-                // Empty response (void)
-                return TRsp();
+            catch (const std::exception& e) {
+                // Clean up in case of exception
+                delete payloadPtr;
+                throw; // Re-throw the exception
             }
         }
 
     public:
         ProtoReqRspClientHandler(std::unique_ptr<ITransportReqRspClientSocket> socket)
-            : _socket(std::move(socket)) {
+            : _socket(std::move(socket)), _serializer(std::make_shared<MessageSerializer>()) {
             if (!_socket) {
                 throw std::invalid_argument("Socket cannot be null");
             }
@@ -132,14 +109,14 @@ namespace cppplumberd {
         // Register request-response pair
         template<typename TReq, unsigned int ReqId, typename TRsp, unsigned int RspId>
         void RegisterRequestResponse() {
-            _serializer.RegisterMessage<TReq, ReqId>();
-            _serializer.RegisterMessage<TRsp, RspId>();
+            _serializer->RegisterMessage<TReq, ReqId>();
+            _serializer->RegisterMessage<TRsp, RspId>();
         }
 
         // Register error type with exception factory
         template<typename TError, unsigned int MessageId>
         void RegisterError() {
-            _serializer.RegisterMessage<TError, MessageId>();
+            _serializer->RegisterMessage<TError, MessageId>();
 
             // Register the exception factory that creates and throws the appropriate exception
             _exceptionFactories[MessageId] = [](const std::string& message, MessagePtr errorDetails, unsigned int errorCode) {
@@ -150,8 +127,7 @@ namespace cppplumberd {
                     throw std::runtime_error("Error type mismatch");
                 }
 
-                // Throw typed exception
-                throw TypedFaultException<TError>(message, MessageId, errorCode, *typedError);
+                throw TypedFaultException<TError>(MessageId, errorCode, message, typedError);
                 };
         }
 
@@ -164,15 +140,23 @@ namespace cppplumberd {
                 _connected = true;
             }
 
-            // Get message type ID and serialize request
-            unsigned int reqId = _serializer.GetMessageId<TReq>();
-            std::string requestPayload = _serializer.Serialize(request);
+            // Create a local frame buffer instance for thread safety
+            ProtoFrameBuffer<64 * 1024> inBuf(_serializer);
+            ProtoFrameBuffer<64 * 1024> outBuf(_serializer);
 
-            // Send request and receive response
-            std::string responseData = _socket->Send(CreateRequestMessage(reqId, requestPayload));
+            // Create command header
+            CommandHeader header;
+            unsigned int reqId = _serializer->GetMessageId<TReq>();
+            header.set_command_type(reqId);
 
-            // Process response
-            return ProcessResponse<TRsp>(responseData);
+            // Use frame buffer to create the framed message
+            inBuf.Write<CommandHeader, TReq>(header, request);
+
+            
+            auto received = _socket->Send(inBuf.Get(), inBuf.Size(), outBuf.Get(), outBuf.FreeBytes());
+
+            // Process the response
+            return ProcessResponse<TRsp>(outBuf);
         }
 
         // Start the client

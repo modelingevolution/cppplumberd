@@ -38,7 +38,20 @@ namespace cppplumberd {
             _connected = true;
             cout << "connected to: " << url << endl;
         }
+        size_t Send(const uint8_t* inBuf, const size_t inSize, uint8_t* outBuf, const size_t outMaxBufSize) override {
+            if (!_connected) {
+                throw runtime_error("Socket not connected");
+            }
 
+            // Send the request data with view
+            nng::view view(inBuf, inSize);
+            _socket.send(view);
+
+            nng::view outView(outBuf, outMaxBufSize);
+            auto result= _socket.recv(outView);
+
+            return result;
+        }
         string Send(const string& data) override {
             if (!_connected) {
                 throw runtime_error("Socket not connected");
