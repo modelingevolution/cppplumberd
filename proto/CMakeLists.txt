@@ -2,11 +2,9 @@ cmake_minimum_required(VERSION 3.14)
 
 # Find Protocol Buffers
 find_package(Protobuf REQUIRED)
-
-# Set output directories for library
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+message(STATUS "Found Protobuf: ${Protobuf_VERSION}")
+message(STATUS "Protobuf include directory: ${Protobuf_INCLUDE_DIRS}")
+message(STATUS "Protobuf libraries: ${Protobuf_LIBRARIES}")
 
 # Define the proto files
 set(PROTO_FILES
@@ -20,14 +18,20 @@ file(MAKE_DIRECTORY ${PROTO_INCLUDE_DIR})
 # Generate protobuf files
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
 
+# Print the generated files for debugging
+message(STATUS "Proto source files: ${PROTO_SRCS}")
+message(STATUS "Proto header files: ${PROTO_HDRS}")
+
 # Create shared library
-add_library(cppplumberd-messages SHARED ${PROTO_SRCS} ${PROTO_HDRS})
+add_library(cppplumberd-messages STATIC ${PROTO_SRCS} ${PROTO_HDRS})
 
 # Set the library properties
 set_target_properties(cppplumberd-messages PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
     POSITION_INDEPENDENT_CODE ON
+    # Make sure the output name matches what's expected
+    OUTPUT_NAME "cppplumberd-messages"
 )
 
 # Link against protobuf
@@ -53,6 +57,12 @@ foreach(HEADER ${PROTO_HDRS})
         COMMENT "Copying ${HEADER_FILENAME} to include directory"
     )
 endforeach()
+
+# Add include directory for generated files
+target_include_directories(cppplumberd-messages
+    PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 # Install the library
 install(TARGETS cppplumberd-messages

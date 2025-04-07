@@ -1,0 +1,58 @@
+// proto/messages.proto
+syntax = "proto3";
+
+package app;
+
+enum ValueType {
+  BYTE = 0;
+  SHORT = 1;
+  INT = 2;
+  LONG = 3;
+  FLOAT = 4;
+  DOUBLE = 5;
+  STRING = 6;
+  BYTE_ARRAY = 7;
+  SHORT_ARRAY = 8;
+  INT_ARRAY = 9;
+  LONG_ARRAY = 10;
+  FLOAT_ARRAY = 11;
+  DOUBLE_ARRAY = 12;
+  STRING_ARRAY = 13;
+}
+
+
+
+// Command to set a property value
+message SetterCommand {
+  string element_name = 1;
+  string property_name = 2;
+  ValueType value_type = 3;
+  bytes value_data = 4;  // Serialized value according to value_type
+}
+// Command to create a subscription
+message StartReactiveSubscriptionCommand {
+	string name = 1;
+}
+message CreateReactiveSubscriptionCommand {
+	string name = 1;
+	repeated PropertySelector properties = 2;
+}
+message DeleteTopicCommand {
+	string name = 1;
+}
+// Property selector for subscriptions
+message PropertySelector {
+  string element_name = 1;
+  string property_name = 2;
+}
+
+
+// Event published when properties change
+message PropertyChangedEvent {
+  
+  string element_name = 1;
+  string property_name = 2;
+  ValueType value_type = 3;
+  bytes value_data = 4;
+}
+

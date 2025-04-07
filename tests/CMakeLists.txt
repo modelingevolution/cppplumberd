@@ -22,6 +22,9 @@ add_executable(transport_tests
   "ngg.cpp"
 )
 
+# Explicitly add dependency to ensure cppplumberd-messages is built first
+add_dependencies(transport_tests cppplumberd-messages)
+
 target_link_libraries(transport_tests PRIVATE 
   ${PROJECT_NAME}
   cppplumberd-messages
@@ -35,15 +38,22 @@ add_executable(proto_publish_handler_tests
   proto_publish_handler_tests.cpp
 )
 
-# Link against app_proto_messages to get access to app-specific messages
+# Explicitly add dependency to ensure cppplumberd-messages is built first
+add_dependencies(proto_publish_handler_tests cppplumberd-messages)
+
+# Link against cppplumberd-messages to get access to core messages
 target_link_libraries(proto_publish_handler_tests PRIVATE
   ${PROJECT_NAME}
   cppplumberd-messages
-  app_proto_messages
   gtest
   gtest_main
   gmock
 )
+
+# We'll add app_proto_messages only when it exists
+if(TARGET app_proto_messages)
+  target_link_libraries(proto_publish_handler_tests PRIVATE app_proto_messages)
+endif()
 
 # Add include directories
 target_include_directories(transport_tests PRIVATE 
