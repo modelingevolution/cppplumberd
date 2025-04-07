@@ -13,166 +13,161 @@
 
 namespace cppplumberd {
 
-    class ProtoReqRspClientHandler {
-    private:
-        std::unique_ptr<ITransportReqRspClientSocket> _socket;
-        std::shared_ptr<MessageSerializer> _serializer;
-        bool _connected = false;
+	class ProtoReqRspClientHandler {
+	private:
+		std::unique_ptr<ITransportReqRspClientSocket> _socket;
+		std::shared_ptr<MessageSerializer> _serializer;
+		bool _connected = false;
 
-        // Map of message types to exception factories
-        std::unordered_map<unsigned int, std::function<void(const std::string&, MessagePtr, unsigned int)>> _exceptionFactories;
+		// Map of message types to exception factories
+		std::unordered_map<unsigned int, std::function<void(const std::string&, MessagePtr, unsigned int)>> _exceptionFactories;
 
-        // Helper method to process response using ProtoFrameBuffer
-        template<typename TRsp>
-        TRsp ProcessResponse(const ProtoFrameBuffer<64 * 1024>& frameBuffer) {
-            if (frameBuffer.Size() < 8) {
-                throw std::runtime_error("Response too short");
-            }
+		// Helper method to process response using ProtoFrameBuffer
+		template<typename TRsp>
+		TRsp ProcessResponse(const ProtoFrameBuffer<64 * 1024>& frameBuffer, size_t received) {
+			if (frameBuffer.Size() < 8) {
+				throw std::runtime_error("Response too short");
+			}
 
 
-            // Use a selector function that extracts the message type from the response header
-            auto responseTypeSelector = [](const CommandResponse& header) -> unsigned int {
-                // Return 0 if no response type (for void responses) or the actual response type
-                return header.response_type();
-                };
+			// Use a selector function that extracts the message type from the response header
+			auto responseTypeSelector = [](const CommandResponse& header) -> unsigned int {
+				// Return 0 if no response type (for void responses) or the actual response type
+				return header.response_type();
+				};
 
-            // Parse using ProtoFrameBuffer
-            
-            MessagePtr payloadPtr = nullptr;
+			// Parse using ProtoFrameBuffer
 
-            try {
-                
-                auto response = frameBuffer.Read<CommandResponse>(responseTypeSelector,payloadPtr);
-                if (!response) {
-                    delete payloadPtr;
-                    throw std::runtime_error("Failed to parse command response header");
-                }
+			MessagePtr payloadPtr = nullptr;
 
-                // Check for errors
-                if (response->status_code() != 0) {
-                    
-                    std::string errorMsg = response->error_message();
-                    auto status = response->status_code();
 
-                    if (payloadPtr != nullptr) {
-                        // Find the exception factory for this error type
-                        auto factoryIt = _exceptionFactories.find(response->response_type());
-                        if (factoryIt != _exceptionFactories.end()) {
-                            factoryIt->second(errorMsg, payloadPtr, status);
-                            // Should never reach here
-                        }
 
-                        delete payloadPtr;
-                        payloadPtr = nullptr;
-                    }
+			auto response = frameBuffer.Read<CommandResponse>(responseTypeSelector, payloadPtr);
+			if (!response) {
+				delete payloadPtr;
+				throw std::runtime_error("Failed to parse command response header");
+			}
 
-                    throw FaultException(errorMsg,status);
-                }
+			// Check for errors
+			if (response->status_code() >= 300 || response->status_code() < 200) {
 
-                // Process successful response
-                if (payloadPtr != nullptr) {
-                    // Try to cast to the expected response type
-                    TRsp* typedResponse = dynamic_cast<TRsp*>(payloadPtr);
-                    if (!typedResponse) {
-                        delete payloadPtr;
-                        throw std::runtime_error("Response type mismatch");
-                    }
+				std::string errorMsg = response->error_message();
+				auto status = response->status_code();
 
-                    // Make a copy of the response before deleting the pointers
-                    TRsp result = *typedResponse;
+				if (payloadPtr != nullptr) {
+					// Find the exception factory for this error type
+					auto factoryIt = _exceptionFactories.find(response->response_type());
+					if (factoryIt != _exceptionFactories.end()) {
+						factoryIt->second(errorMsg, payloadPtr, status);
+						// Should never reach here
+					}
 
-                    // Clean up
-                    delete payloadPtr;
+					delete payloadPtr;
+					payloadPtr = nullptr;
+				}
 
-                    return result;
-                }
-                else {
-                    // Empty response (void)
-                    return TRsp();
-                }
-            }
-            catch (const std::exception& e) {
-                // Clean up in case of exception
-                delete payloadPtr;
-                throw; // Re-throw the exception
-            }
-        }
+				throw FaultException(errorMsg, status);
+			}
 
-    public:
-        ProtoReqRspClientHandler(std::unique_ptr<ITransportReqRspClientSocket> socket)
-            : _socket(std::move(socket)), _serializer(std::make_shared<MessageSerializer>()) {
-            if (!_socket) {
-                throw std::invalid_argument("Socket cannot be null");
-            }
-        }
+			// Process successful response
+			if (payloadPtr != nullptr) {
+				// Try to cast to the expected response type
+				TRsp* typedResponse = dynamic_cast<TRsp*>(payloadPtr);
+				if (!typedResponse) {
+					delete payloadPtr;
+					throw std::runtime_error("Response type mismatch");
+				}
 
-        // Register request-response pair
-        template<typename TReq, unsigned int ReqId, typename TRsp, unsigned int RspId>
-        void RegisterRequestResponse() {
-            _serializer->RegisterMessage<TReq, ReqId>();
-            _serializer->RegisterMessage<TRsp, RspId>();
-        }
+				// Make a copy of the response before deleting the pointers
+				TRsp result = *typedResponse;
 
-        // Register error type with exception factory
-        template<typename TError, unsigned int MessageId>
-        void RegisterError() {
-            _serializer->RegisterMessage<TError, MessageId>();
+				// Clean up
+				delete payloadPtr;
 
-            // Register the exception factory that creates and throws the appropriate exception
-            _exceptionFactories[MessageId] = [](const std::string& message, MessagePtr errorDetails, unsigned int errorCode) {
-                // Create specific error from the generic message
-                TError* typedError = dynamic_cast<TError*>(errorDetails);
-                if (!typedError) {
-                    delete errorDetails;
-                    throw std::runtime_error("Error type mismatch");
-                }
+				return result;
+			}
+			else {
+				// Empty response (void)
+				return TRsp();
+			}
 
-                throw TypedFaultException<TError>(MessageId, errorCode, message, typedError);
-                };
-        }
+		}
 
-        // Send request and receive response
-        template<typename TReq, typename TRsp>
-        TRsp Send(const TReq& request) {
-            // Ensure connected
-            if (!_connected) {
-                _socket->Start();
-                _connected = true;
-            }
+	public:
+		ProtoReqRspClientHandler(std::unique_ptr<ITransportReqRspClientSocket> socket)
+			: _socket(std::move(socket)), _serializer(std::make_shared<MessageSerializer>()) {
+			if (!_socket) {
+				throw std::invalid_argument("Socket cannot be null");
+			}
+		}
 
-            // Create a local frame buffer instance for thread safety
-            ProtoFrameBuffer<64 * 1024> inBuf(_serializer);
-            ProtoFrameBuffer<64 * 1024> outBuf(_serializer);
+		// Register request-response pair
+		template<typename TReq, unsigned int ReqId, typename TRsp, unsigned int RspId>
+		void RegisterRequestResponse() {
+			_serializer->RegisterMessage<TReq, ReqId>();
+			_serializer->RegisterMessage<TRsp, RspId>();
+		}
 
-            // Create command header
-            CommandHeader header;
-            unsigned int reqId = _serializer->GetMessageId<TReq>();
-            header.set_command_type(reqId);
+		// Register error type with exception factory
+		template<typename TError, unsigned int MessageId>
+		void RegisterError() {
+			_serializer->RegisterMessage<TError, MessageId>();
 
-            // Use frame buffer to create the framed message
-            inBuf.Write<CommandHeader, TReq>(header, request);
+			// Register the exception factory that creates and throws the appropriate exception
+			_exceptionFactories[MessageId] = [](const std::string& message, MessagePtr errorDetails, unsigned int errorCode) {
+				// Create specific error from the generic message
+				TError* typedError = dynamic_cast<TError*>(errorDetails);
+				if (!typedError) {
+					delete errorDetails;
+					throw std::runtime_error("Error type mismatch");
+				}
 
-            
-            auto received = _socket->Send(inBuf.Get(), inBuf.Size(), outBuf.Get(), outBuf.FreeBytes());
+				throw TypedFaultException<TError>(MessageId, errorCode, message, typedError);
+				};
+		}
 
-            // Process the response
-            return ProcessResponse<TRsp>(outBuf);
-        }
+		// Send request and receive response
+		template<typename TReq, typename TRsp>
+		TRsp Send(const TReq& request) {
+			// Ensure connected
+			if (!_connected) {
+				_socket->Start();
+				_connected = true;
+			}
 
-        // Start the client
-        void Start(const std::string& url) {
-            if (!_connected) {
-                _socket->Start(url);
-                _connected = true;
-            }
-        }
+			// Create a local frame buffer instance for thread safety
+			ProtoFrameBuffer<64 * 1024> inBuf(_serializer);
+			ProtoFrameBuffer<64 * 1024> outBuf(_serializer);
 
-        void Start() {
-            if (!_connected) {
-                _socket->Start();
-                _connected = true;
-            }
-        }
-    };
+			// Create command header
+			CommandHeader header;
+			unsigned int reqId = _serializer->GetMessageId<TReq>();
+			header.set_command_type(reqId);
+
+			// Use frame buffer to create the framed message
+			inBuf.Write<CommandHeader, TReq>(header, request);
+			outBuf.Reset();
+
+			auto received = _socket->Send(inBuf.Get(), inBuf.Size(), outBuf.Get(), outBuf.FreeBytes());
+			outBuf.AckWritten(received);
+			// Process the response
+			return ProcessResponse<TRsp>(outBuf, received);
+		}
+
+		// Start the client
+		void Start(const std::string& url) {
+			if (!_connected) {
+				_socket->Start(url);
+				_connected = true;
+			}
+		}
+
+		void Start() {
+			if (!_connected) {
+				_socket->Start();
+				_connected = true;
+			}
+		}
+	};
 
 } // namespace cppplumberd

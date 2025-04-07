@@ -9,153 +9,122 @@
 #include "cppplumberd/transport_interfaces.hpp"
 #include "cppplumberd/message_serializer.hpp"
 #include "cppplumberd/message_dispatcher.hpp"
+#include "cppplumberd/proto_frame_buffer.hpp"
 #include "proto/cqrs.pb.h"
 
 namespace cppplumberd {
 
-    using namespace std::chrono;
+    using namespace std;
 
     class ProtoReqRspSrvHandler {
     private:
         unique_ptr<ITransportReqRspSrvSocket> _socket;
-        MessageSerializer _serializer;
-        MessageDispatcher<string, CommandHeader> _dispatcher;
+        shared_ptr<MessageSerializer> _serializer;
+        MessageDispatcher<size_t, CommandHeader> _dispatcher;
         bool _running = false;
 
-        // Process incoming messages with proper framing
-        string ProcessMessage(const string& requestData) {
+        // Process incoming messages with direct buffer access
+        inline size_t HandleRequest(const size_t requestSize) {
+            _inBuffer->AckWritten(requestSize);
+            _outBuffer->Reset();
+            auto responseTypeSelector = [](const CommandHeader& header) -> unsigned int {
+                // Return 0 if no response type (for void responses) or the actual response type
+                return header.command_type();
+                };
+            MessagePtr payload;
+            unique_ptr<CommandHeader> header = this->_inBuffer->Read<CommandHeader>(responseTypeSelector, payload);
+            CommandResponse rsp;
             try {
-                // Message must be at least 8 bytes (for header and payload sizes)
-                if (requestData.size() < 8) {
-                    throw runtime_error("Message too short");
-                }
-
-                // Extract sizes
-                const uint32_t* sizePtr = reinterpret_cast<const uint32_t*>(requestData.data());
-                uint32_t headerSize = sizePtr[0];
-                uint32_t payloadSize = sizePtr[1];
-
-                // Validate total size
-                if (requestData.size() < 8 + headerSize + payloadSize) {
-                    throw runtime_error("Message truncated");
-                }
-
-                // Parse command header
-                CommandHeader header;
-                if (!header.ParseFromArray(requestData.data() + 8, headerSize)) {
-                    throw runtime_error("Failed to parse command header");
-                }
-
-                // Extract payload
-                const char* payloadData = requestData.data() + 8 + headerSize;
-                string payload(payloadData, payloadSize);
-
-                try {
-                    // Deserialize the payload using the message serializer
-                    MessagePtr requestMsg = _serializer.Deserialize(payload, header.command_type());
-
-                    // Process the command using MessageDispatcher
-                    string responsePayload = _dispatcher.Handle(header, header.command_type(), requestMsg);
-
-                    // Delete the message pointer (it was allocated by Deserialize)
-                    delete requestMsg;
-
-                    // Create success response
-                    return CreateResponse(0, "", 0, responsePayload);
-                }
-                catch (const FaultException& ex) {
-                    // Create error response with exception details
-                    return CreateResponse(ex.ErrorCode(), ex.what(), ex.MessageTypeId(), ex.Serialize());
-                }
+                size_t retSize = _dispatcher.Handle(*header, header->command_type(), payload);
+                return retSize;
             }
-            catch (const exception& ex) {
-                // Create standard error response
-                return CreateResponse(1, ex.what(), 0, "");
+            catch (const FaultException &f)
+            {
+                rsp.set_error_message(f.what());
+                rsp.set_status_code(f.ErrorCode());
+                rsp.set_response_type(f.MessageTypeId());
+                // we need to serialize exception and return;
+                _outBuffer->Write(rsp, f.Get());
+                return _outBuffer->Size();
             }
         }
-
-        // Helper to create framed response with consistent format
-        string CreateResponse(unsigned int statusCode,
-            const string& errorMessage,
-            unsigned int responseType,
-            const string& payload) {
-            // Create and serialize command response header
-            CommandResponse response;
-            response.set_status_code(statusCode);
-            response.set_error_message(errorMessage);
-            response.set_response_type(responseType);
-
-            string headerData;
-            response.SerializeToString(&headerData);
-
-            // Allocate buffer for framed message
-            vector<uint8_t> framedMessage(8 + headerData.size() + payload.size());
-            uint32_t* sizePtr = reinterpret_cast<uint32_t*>(framedMessage.data());
-            sizePtr[0] = headerData.size();  // NOLINT(clang-diagnostic-shorten-64-to-32)
-            sizePtr[1] = payload.size(); // NOLINT(clang-diagnostic-shorten-64-to-32)
-
-            // Copy header and payload data
-            memcpy(framedMessage.data() + 8, headerData.data(), headerData.size());
-            if (!payload.empty()) {
-                memcpy(framedMessage.data() + 8 + headerData.size(), payload.data(), payload.size());
-            }
-
-            return string(reinterpret_cast<char*>(framedMessage.data()), framedMessage.size());
-        }
+        unique_ptr<ProtoFrameBuffer<64 * 1024>> _inBuffer;
+        unique_ptr<ProtoFrameBuffer<64 * 1024>> _outBuffer;
 
     public:
-        ProtoReqRspSrvHandler(unique_ptr<ITransportReqRspSrvSocket> socket)
-            : _socket(move(socket)) {
+        inline ProtoReqRspSrvHandler(unique_ptr<ITransportReqRspSrvSocket> socket)
+            : _socket(move(socket)), _serializer(make_shared<MessageSerializer>()) {
             if (!_socket) {
                 throw invalid_argument("Socket cannot be null");
             }
         }
 
+        // Old string-based Initialize method (throws not supported exception)
+        inline void Initialize(function<string(const string&)> handler) {
+            throw runtime_error("String-based handlers are no longer supported. Use buffer-based initialization.");
+        }
+
         template<typename TReq, unsigned int ReqId, typename TRsp, unsigned int RspId>
-        void RegisterHandler(function<TRsp(const TReq&)> handler) {
+        inline void RegisterHandler(function<TRsp(const TReq&)> handler) {
             // Register message types with serializer
-            _serializer.RegisterMessage<TReq, ReqId>();
-            _serializer.RegisterMessage<TRsp, RspId>();
+            _serializer->RegisterMessage<TReq, ReqId>();
+            _serializer->RegisterMessage<TRsp, RspId>();
 
             // Register handler with MessageDispatcher
             _dispatcher.RegisterHandler<TReq, ReqId>(
-                [this, handler](const CommandHeader& header, const TReq& request) -> string {
+                [this, handler](const CommandHeader& header, const TReq& request) -> size_t {
                     // Call the handler - let exceptions propagate up
                     TRsp response = handler(request);
-
-                    // Serialize the response
-                    string responseData;
-                    if (!response.SerializeToString(&responseData)) {
-                        throw runtime_error("Failed to serialize response");
-                    }
-
-                    return responseData;
+                    CommandResponse rsp;
+                    rsp.set_status_code(200);
+                    return _outBuffer->Write(rsp,&response);
+                }
+            );
+        }
+        template<typename TReq, unsigned int ReqId>
+        inline void RegisterHandler(function<void(const TReq&)> handler) {
+            // Register message types with serializer
+            _serializer->RegisterMessage<TReq, ReqId>();
+            _dispatcher.RegisterHandler<TReq, ReqId>(
+                [this, handler](const CommandHeader& header, const TReq& request) -> size_t {
+                    // Call the handler - let exceptions propagate up
+                    handler(request);
+                    CommandResponse rsp;
+                    rsp.set_status_code(200);
+                    return _outBuffer->Write(rsp, nullptr);
                 }
             );
         }
 
-        // Base class for fault exceptions
-        
-
         template<typename TError, unsigned int MessageId>
-        void RegisterError() {
-            _serializer.RegisterMessage<TError, MessageId>();
+        inline void RegisterError() {
+            _serializer->RegisterMessage<TError, MessageId>();
         }
 
-        void Start() {
+        
+
+        inline void Start(const string& url) {
             if (_running) return;
 
-            // Initialize the socket with our message processing callback
-            _socket->Initialize([this](const string& request) -> string {
-                return this->ProcessMessage(request);
-                });
-
-            _socket->Start();
+           
+            // Initialize the socket with our buffer-based handler
+            auto replyFunc = [this](const size_t requestSize) -> size_t {
+                
+                return this->HandleRequest(requestSize);
+                };
+            _inBuffer = make_unique<ProtoFrameBuffer<64 * 1024>>(_serializer);
+            _outBuffer = make_unique<ProtoFrameBuffer<64 * 1024>>(_serializer);
+            _socket->Initialize(replyFunc, _inBuffer->Get(), _inBuffer->FreeBytes(), _outBuffer->Get(), _outBuffer->FreeBytes());
+            _socket->Start(url);
             _running = true;
         }
 
-        void Stop() {
+        inline void Stop() {
             _running = false;
+        }
+
+        inline ~ProtoReqRspSrvHandler() {
+            
         }
     };
 }

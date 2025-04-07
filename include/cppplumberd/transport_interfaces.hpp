@@ -37,7 +37,8 @@ namespace cppplumberd {
 	};
 	class ITransportReqRspSrvSocket : public ISocket {
 	public:
-		virtual void Initialize(function<string(const string&)>) = 0;
+		
+		virtual void Initialize(function<size_t(const size_t)> replFunc, uint8_t* inBuf, size_t inMaxBufSize, uint8_t* outBuf, size_t outMaxBufSize) = 0;
 	};
 	class ISocketFactory {
 	public:

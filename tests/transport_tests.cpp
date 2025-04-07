@@ -123,7 +123,7 @@ TEST_F(TransportTest, ReqRepTest) {
     auto server = factory->CreateReqRspSrvSocket(req_rsp);
 
     
-    server->Initialize([](const string& message) -> string { return "Echo: " + message; });
+    //server->Initialize([](const string& message) -> string { return "Echo: " + message; });
     server->Start();
 
     this_thread::sleep_for(chrono::milliseconds(200));

@@ -22,21 +22,22 @@ namespace cppplumberd {
         bool _bound = false;
         thread _recvThread;
         atomic<bool> _running{ false };
-        function<string(const string&)> _handler;
-
+        function<size_t(const size_t)> _handler;
+        uint8_t* _inBuffer;
+        size_t _inBufferSize;
+        uint8_t* _outBuffer;
+        size_t _outBufferSize;
        
 
         void ReceiveLoop() {
             while (_running) {
                 try {
-                    nng::buffer buffer = _socket.recv();
+	                nng::view out(_inBuffer, _inBufferSize);
+                    auto reqSize = _socket.recv(out);
 
-                    // Convert buffer to string
-                    string request(static_cast<const char*>(buffer.data()), buffer.size());
-                    
-                    auto result = _handler(request);
-					// Send the response back
-					nng::view view(result.data(), result.size());
+                    auto rspSize = _handler(reqSize);
+					
+					nng::view view(_outBuffer, rspSize);
 					_socket.send(view);
                 }
                 catch (const nng::exception& e) {
@@ -68,9 +69,17 @@ namespace cppplumberd {
             }
         }
 
-        void ITransportReqRspSrvSocket::Initialize(function<string(const string&)> handler) override {
+        
+
+        void Initialize(function<size_t(const size_t)> handler, uint8_t* inBuf, size_t inMaxBufSize, uint8_t* outBuf, size_t outMaxBufSize)
+    {
             _handler = handler;
-        }
+            _inBuffer = inBuf;
+            _inBufferSize = inMaxBufSize;
+            _outBuffer = outBuf;
+            _outBufferSize = outMaxBufSize;
+    }
+        
         void Start() override
         {
             Start(_url);

@@ -17,7 +17,7 @@ namespace cppplumberd {
 
         virtual ~FaultException() = default;
 
-        virtual MessagePtr Get() { return nullptr; }
+        virtual MessagePtr Get() const { return nullptr; }
         virtual unsigned int MessageTypeId() const { return 0; }
 
         unsigned int ErrorCode() const { return _errorCode; }

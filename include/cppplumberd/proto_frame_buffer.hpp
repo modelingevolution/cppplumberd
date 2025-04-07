@@ -26,12 +26,12 @@ namespace cppplumberd {
         inline ProtoFrameBuffer(shared_ptr<MessageSerializer> s) :_serializer(s) {
         }
         inline size_t Size() const { return _size; }
-        inline uint8_t* Get() const { return _buffer; }
+        inline uint8_t* Get() const { return (uint8_t*)_buffer; }
         inline size_t FreeBytes() const { return size - _size; }
         
 
-        template<typename THeader, typename TMsg>
-        inline void Write(const THeader& header, const TMsg& msg)
+        template<typename THeader>
+        inline size_t Write(const THeader& header, MessagePtr ptr)
         {
             // Reset buffer
             _size = 0;
@@ -53,13 +53,19 @@ namespace cppplumberd {
             // Update offset past the serialized header
             _offset += headerSize;
 
+            if (ptr == nullptr)
+            {
+                _size = _offset;
+                return _size;
+            }
+
             // Serialize payload directly to buffer
-            if (!msg.SerializeToArray(_buffer + _offset, size - _offset)) {
+            if (!ptr->SerializeToArray(_buffer + _offset, size - _offset)) {
                 throw std::runtime_error("Failed to serialize message payload");
             }
 
             // Store the serialized payload size
-            uint32_t payloadSize = static_cast<uint32_t>(msg.ByteSizeLong());
+            uint32_t payloadSize = static_cast<uint32_t>(ptr->ByteSizeLong());
             sizePtr[1] = payloadSize;
 
             // Calculate total size
@@ -69,6 +75,7 @@ namespace cppplumberd {
             if (_size > size) {
                 throw std::runtime_error("Message too large for buffer");
             }
+            return _size;
         }
         inline void AckWritten(size_t size)
         {
@@ -109,7 +116,7 @@ namespace cppplumberd {
             }
 
             // Use the selector function to determine payload message type
-            unsigned int payloadType = payloadMessageIdSelector(typedHeader);
+            unsigned int payloadType = payloadMessageIdSelector(*typedHeader);
 
 
             // Extract payload bytes (after header)
@@ -118,6 +125,12 @@ namespace cppplumberd {
             // Parse payload using MessageSerializer with the determined type
             msgPtr = _serializer->Deserialize(payloadBytes, payloadSize, payloadType);
             return typedHeader;
+        }
+
+        inline void Reset()
+        {
+            _size = 0;
+            _offset = 0;
         }
     };
 }
