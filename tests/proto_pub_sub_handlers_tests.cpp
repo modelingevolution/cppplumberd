@@ -4,15 +4,15 @@
 #include <memory>
 #include <string>
 #include "plumberd.hpp"
-#include "proto/test_msgs.pb.h"
-#include "proto/cqrs.pb.h"
+#include "test_msgs.pb.h"
+
 
 
 
 using namespace cppplumberd;
 using namespace std;
 using namespace testing;
-
+using namespace app::testing;
 
 // Mock for ITransportPublishSocket
 class MockTransportPublishSocket : public ITransportPublishSocket {
@@ -33,7 +33,7 @@ protected:
         handler = make_unique<ProtoPublishHandler>(unique_ptr<ITransportPublishSocket>(mockSocket.get()));
 
         // Register PropertyChangedEvent message type
-        handler->RegisterMessage<PropertyChangedEvent, PROPERTY_CHANGED_EVENT_ID>();
+        handler->RegisterMessage<app::testing::PropertyChangedEvent, PROPERTY_CHANGED_EVENT_ID>();
     }
 
     void TearDown() override {
@@ -62,7 +62,7 @@ TEST_F(ProtoPublishHandlerTest, StartCallsSocketStart) {
 
 TEST_F(ProtoPublishHandlerTest, PublishSerializesAndSendsMessage) {
     // Create a PropertyChangedEvent from the app
-    PropertyChangedEvent event;
+    app::testing::PropertyChangedEvent event;
     event.set_element_name("TestElement");
     event.set_property_name("TestProperty");
     event.set_value_type(ValueType::INT);
