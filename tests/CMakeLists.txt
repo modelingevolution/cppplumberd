@@ -13,81 +13,57 @@ if(NOT GTest_FOUND)
   FetchContent_MakeAvailable(googletest)
 endif()
 
-# Find nngpp package
+# Find dependencies
 find_package(nngpp CONFIG REQUIRED)
-
-# Add test executables
-add_executable(transport_tests 
-  transport_tests.cpp 
-  "ngg.cpp"
-)
-
-# Explicitly add dependency to ensure cppplumberd-messages is built first
-add_dependencies(transport_tests cppplumberd-messages)
-
-target_link_libraries(transport_tests PRIVATE 
-  ${PROJECT_NAME}
-  cppplumberd-messages
-  gtest
-  gtest_main
-  gmock
-)
-
-# ProtoPublishHandler test executable
-add_executable(proto_publish_handler_tests
-  "proto_pub_sub_handlers_tests.cpp"
-)
-
-# Protocol Buffers integration
 find_package(Protobuf REQUIRED)
-set(PROTO_FILES
+
+# Set up directories for generated protobuf files
+set(TESTS_PROTO_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto)
+file(MAKE_DIRECTORY ${TESTS_PROTO_OUTPUT_DIR})
+
+# Test-specific proto files
+set(TEST_PROTO_FILES
     proto/test_msgs.proto
 )
 
-# Make sure output directories exist for protobuf-generated files
-file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/proto)
+# Generate protobuf files for tests
+protobuf_generate_cpp(TEST_PROTO_SRCS TEST_PROTO_HDRS ${TEST_PROTO_FILES})
 
-# Generate protobuf files - pass the PROTO_FILES argument
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
+# Collect all test source files
+set(TEST_SOURCES
+    transport_tests.cpp
+    ngg.cpp
+    proto_pub_sub_handlers_tests.cpp
+)
 
-# Display protobuf output locations for debugging
-message(STATUS "Proto sources: ${PROTO_SRCS}")
-message(STATUS "Proto headers: ${PROTO_HDRS}")
+# Single test executable
+add_executable(cppplumberd_tests ${TEST_SOURCES} ${TEST_PROTO_SRCS} ${TEST_PROTO_HDRS})
 
-# Add the generated files to the executables
-add_library(proto_test_messages STATIC ${PROTO_SRCS} ${PROTO_HDRS})
-target_link_libraries(proto_test_messages PUBLIC protobuf::libprotobuf)
-target_include_directories(proto_test_messages PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-
-# Explicitly add dependency to ensure cppplumberd-messages is built first
-add_dependencies(proto_publish_handler_tests cppplumberd-messages)
-
-# Link against cppplumberd-messages to get access to core messages
-target_link_libraries(proto_publish_handler_tests PRIVATE
+# Set up library dependencies
+target_link_libraries(cppplumberd_tests PRIVATE
   ${PROJECT_NAME}
   cppplumberd-messages
-  proto_test_messages
+  protobuf::libprotobuf
   gtest
   gtest_main
   gmock
 )
 
-
-
-# Add include directories
-target_include_directories(transport_tests PRIVATE 
+# Set up include directories
+target_include_directories(cppplumberd_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/../include
-  ${CMAKE_CURRENT_BINARY_DIR}/../ # For generated protobuf headers
-  ${PROTO_HDRS}
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${CMAKE_SOURCE_DIR}
 )
 
-target_include_directories(proto_publish_handler_tests PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/../include
-  ${CMAKE_CURRENT_BINARY_DIR}/../ # For generated protobuf headers
-  ${CMAKE_SOURCE_DIR} # To access examples/app dir
-  ${CMAKE_BINARY_DIR} # For generated app protobuf headers
+# Register the test
+add_test(NAME cppplumberd_tests COMMAND cppplumberd_tests)
+
+# Set output directory (optional)
+set_target_properties(cppplumberd_tests PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 
-# Register tests
-add_test(NAME transport_tests COMMAND transport_tests)
-add_test(NAME proto_publish_handler_tests COMMAND proto_publish_handler_tests)
+# Visual feedback on test setup
+message(STATUS "Test proto headers: ${TEST_PROTO_HDRS}")
+message(STATUS "All tests consolidated into single executable: cppplumberd_tests")
