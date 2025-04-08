@@ -170,6 +170,15 @@ namespace cppplumberd {
     {
     public: ProtoFrameBuffer(shared_ptr<MessageSerializer> s) : ProtoFrameBufferView(s, _buffer, size) {}
     public: ProtoFrameBuffer() : ProtoFrameBufferView(make_shared<MessageSerializer>(), _buffer, size) {}
+    public:
+        inline ~ProtoFrameBuffer()
+    	{
+			cout << "ProtoBuffer destroyed" << endl;
+    	}
+        inline void Clear()
+    	{
+            memset(_buffer, 0, size);
+    	}
     private:
         uint8_t _buffer[size];
     };

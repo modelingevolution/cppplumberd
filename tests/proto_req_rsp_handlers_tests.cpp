@@ -83,7 +83,7 @@ protected:
         serverHandler = make_unique<ProtoReqRspSrvHandler>(unique_ptr<ITransportReqRspSrvSocket>(mockServerSocket.get()));
 
         // Register message types
-        clientHandler->RegisterRequest<SetterCommand, COMMANDS::SETTER>();
+        clientHandler->RegisterRequest<SetterCommand, app::testing::COMMANDS::SETTER>();
         clientHandler->RegisterError<TestError, ERROR_TYPE_ID>();
         serverHandler->RegisterError<TestError, ERROR_TYPE_ID>();
 
@@ -109,7 +109,7 @@ protected:
 
     // Helper methods for setting up mocks
     void SetDefaultCommandHandler() {
-        serverHandler->RegisterHandler<SetterCommand, COMMANDS::SETTER>([this](const SetterCommand& cmd) {
+        serverHandler->RegisterHandler<SetterCommand, app::testing::COMMANDS::SETTER>([this](const SetterCommand& cmd) {
             // Store the last received command
             lock_guard<std::mutex> lock(mtx);
             lastReceivedCommand = cmd;
@@ -144,7 +144,7 @@ protected:
     }
 
     void SetupErrorThrowingCommandHandler() {
-        serverHandler->RegisterHandler<SetterCommand, COMMANDS::SETTER>(
+        serverHandler->RegisterHandler<SetterCommand, app::testing::COMMANDS::SETTER>(
             [](const SetterCommand& cmd) -> void {
                 throw FaultException("Test error", 400);
             });

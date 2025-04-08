@@ -54,7 +54,7 @@ protected:
         subscriber = make_unique<ProtoSubscribeHandler>(unique_ptr<ITransportSubscribeSocket>(mockSubSocket.get()));
 
         // Register message types
-        publisher->RegisterMessage<PropertyChangedEvent, EVENTS::PROPERTY_CHANGED>();
+        publisher->RegisterMessage<PropertyChangedEvent, app::testing::EVENTS::PROPERTY_CHANGED>();
 
         // Set up condition variables for synchronization
         receivedEvent = false;
@@ -92,7 +92,7 @@ protected:
 
 TEST_F(PublishSubscribeIntegrationTest, PublishEventIsReceivedBySubscriber) {
     // 1. Set up event handler in subscriber
-    subscriber->RegisterHandler<PropertyChangedEvent, EVENTS::PROPERTY_CHANGED>(
+    subscriber->RegisterHandler<PropertyChangedEvent, app::testing::EVENTS::PROPERTY_CHANGED>(
         [this](const system_clock::time_point& timestamp, const PropertyChangedEvent& evt) {
             lock_guard<std::mutex> lock(mtx);
             lastReceivedEvent = evt;
@@ -180,7 +180,7 @@ TEST_F(PublishSubscribeIntegrationTest, HandlesMultipleEvents) {
     std::mutex eventsLock;
 
     // Set up handler to collect all received events
-    subscriber->RegisterHandler<PropertyChangedEvent, EVENTS::PROPERTY_CHANGED>(
+    subscriber->RegisterHandler<PropertyChangedEvent, app::testing::EVENTS::PROPERTY_CHANGED>(
         [&](const system_clock::time_point& timestamp, const PropertyChangedEvent& evt) {
             lock_guard<std::mutex> lock(eventsLock);
             receivedEvents.push_back(evt);

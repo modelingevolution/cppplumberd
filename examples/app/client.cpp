@@ -26,7 +26,7 @@ namespace app {
 }
 
 int main() {
-	auto socketFactory = make_shared<cppplumberd::NngSocketFactory>();
+	auto socketFactory = make_shared<cppplumberd::NggSocketFactory>();
 	auto plumber = cppplumberd::PlumberClient::CreateClient(socketFactory, "");
 
 	app::CreateReactiveSubscriptionCommand cmd;

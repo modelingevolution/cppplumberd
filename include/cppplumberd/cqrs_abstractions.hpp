@@ -28,11 +28,16 @@ namespace cppplumberd {
 		time_point<system_clock> Created() const {return _created;		}
     };
 
+	class ICommandHandlerBase
+	{
+	public:
+		virtual ~ICommandHandlerBase() = default;
+	};
     template<typename TCommand>
-    class ICommandHandler {
+    class ICommandHandler : public ICommandHandlerBase {
     public:
         virtual void Handle(const std::string& stream_id, const TCommand& cmd) = 0;
-        virtual ~ICommandHandler() = default;
+        
     };
     template<typename TEvent>
     class IEventHandler {
@@ -47,15 +52,16 @@ namespace cppplumberd {
 		virtual void Handle(const Metadata&, unsigned int messageId, MessagePtr msg) = 0;
 		virtual ~IEventDispatcher() = default;
 	};
+	class ISubscription
+	{
+	public:
+		virtual void Unsubscribe() = 0;
+		virtual ~ISubscription() = default;
+	};
 	class ISubscriptionManager
 	{
 	public:
-		class ISubscription
-		{
-		public:
-			virtual void Unsubscribe() = 0;
-			virtual ~ISubscription() = default;
-		};
+		
 
 
 		virtual unique_ptr<ISubscription> Subscribe(const string& streamName, const shared_ptr<IEventDispatcher>& handler) = 0;

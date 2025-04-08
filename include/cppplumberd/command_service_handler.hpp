@@ -11,6 +11,7 @@ namespace cppplumberd {
 
 
     class CommandServiceHandler {
+        vector<shared_ptr< ICommandHandlerBase>> _handlers;
     public:
         inline CommandServiceHandler(std::unique_ptr<ProtoReqRspSrvHandler> handler)
             : _handler(std::move(handler)) {
@@ -20,7 +21,7 @@ namespace cppplumberd {
         }
 
         template<typename TCommand, unsigned int TCommandId>
-        inline void RegisterHandler(const std::shared_ptr<ICommandHandler<TCommand>>& handler) {
+        inline void RegisterHandler(std::shared_ptr<ICommandHandler<TCommand>> handler) {
             if (!handler) {
                 throw std::invalid_argument("Command handler cannot be null");
             }
@@ -28,6 +29,7 @@ namespace cppplumberd {
             _handler->RegisterHandlerWithMetadata<TCommand, TCommandId>([handler](const CommandHeader &h, const TCommand& cmd) {
                 handler->Handle(h.recipient(), cmd);
                 });
+            _handlers.push_back(handler);
         }
 
         template<typename TException, unsigned int MessageId>

@@ -135,6 +135,12 @@ namespace cppplumberd {
 				throw std::invalid_argument("Socket cannot be null");
 			}
 		}
+		ProtoReqRspClientHandler(std::unique_ptr<ITransportReqRspClientSocket> socket, shared_ptr< MessageSerializer> serializer)
+			: _socket(std::move(socket)), _serializer(serializer) {
+			if (!_socket) {
+				throw std::invalid_argument("Socket cannot be null");
+			}
+		}
 		template<typename TReq, unsigned int ReqId>
 		void RegisterRequest() {
 			_serializer->RegisterMessage<TReq, ReqId>();
@@ -185,7 +191,6 @@ namespace cppplumberd {
 
 			// Create a local frame buffer instance for thread safety
 			ProtoFrameBuffer<64 * 1024> inBuf(_serializer);
-			outBuf = _serializer;
 
 			// Create command header
 			CommandHeader header;
@@ -196,6 +201,7 @@ namespace cppplumberd {
 			// Use frame buffer to create the framed message
 			inBuf.Write<CommandHeader, TReq>(header, request);
 			outBuf.Reset();
+			outBuf.Clear();
 
 			received = _socket->Send(inBuf.Get(), inBuf.Written(), outBuf.Get(), outBuf.FreeBytes());
 			outBuf.AckWritten(received);

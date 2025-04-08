@@ -32,10 +32,11 @@ protobuf_generate_cpp(TEST_PROTO_SRCS TEST_PROTO_HDRS ${TEST_PROTO_FILES})
 # Collect all test source files
 set(TEST_SOURCES
     transport_tests.cpp
-    ngg.cpp
+    "nng.cpp"
     proto_pub_sub_handlers_tests.cpp
     proto_req_rsp_handlers_tests.cpp
- "plumberd_command_flow_e2e.cpp" "plumberd_event_flow_e2e.cpp")
+ "plumberd_command_flow_e2e.cpp" 
+ "plumberd_event_flow_e2e.cpp")
 
 # Single test executable
 add_executable(cppplumberd_tests ${TEST_SOURCES} ${TEST_PROTO_SRCS} ${TEST_PROTO_HDRS})

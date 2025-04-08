@@ -120,6 +120,7 @@ namespace cppplumberd
         inline unsigned int GetMessageId() {
             auto it = _typeIdMap.find(std::type_index(typeid(TMessage)));
             if (it == _typeIdMap.end()) {
+				cout << "Message ID not found for type: " << typeid(TMessage).name() << endl;
                 throw std::runtime_error("Message ID not found for type: " + std::string(typeid(TMessage).name()));
             }
             return it->second;

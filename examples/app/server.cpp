@@ -140,7 +140,7 @@ namespace app {
 }
 
 int main() {
-	auto socketFactory = make_shared<NngSocketFactory>();
+	auto socketFactory = make_shared<NggSocketFactory>();
 	auto plumber = cppplumberd::Plumber::CreateServer(socketFactory, "");
 	plumber->AddCommandHandler<app::SetterCommandHandler, app::SetterCommand, app::COMMANDS::SETTER>();
 	plumber->AddCommandHandler<app::StartReactiveSubscriptionHandler, app::StartReactiveSubscriptionCommand, app::COMMANDS::START_REACTIVE_SUBSCRIPTION>();

@@ -19,6 +19,12 @@ namespace cppplumberd {
         bool _connected = false;
 
     public:
+        ~NngReqRspClientSocket() override
+        {
+			if (_connected) {
+                cout << "NngReqRspClientSocket destroyed." << endl;
+			}
+		}
         NngReqRspClientSocket(const string &url) : _url(url) {
             // Open a request socket - will throw on failure
             _socket = nng::req::open();
@@ -47,9 +53,17 @@ namespace cppplumberd {
             _socket.send(view);
 
             nng::view outView(outBuf, outMaxBufSize);
-            auto result= _socket.recv(outView);
+            try {
+                auto result = _socket.recv(outView);
 
-            return result;
+                return result;
+            }
+            catch (std::exception &e)
+            {
+				// Handle the exception
+				cerr << "Error receiving data: " << e.what() << endl;
+                throw;
+            }
         }
 
     };

@@ -11,7 +11,7 @@
 
 #include "cppplumberd/stop_watch.hpp"
 #include "cppplumberd/transport_interfaces.hpp"
-#include "cppplumberd/nng/ngg_socket_factory.hpp"
+#include "cppplumberd/nng/nng_socket_factory.hpp"
 
 using namespace std;
 using namespace cppplumberd;
@@ -24,7 +24,7 @@ protected:
     const string pub_sub = "ps";
     void SetUp() override {
         // Create socket factory - using nng implementation but through the interface
-        factory = make_shared<NngSocketFactory>("ipc:///tmp/transport_test");
+        factory = make_shared<NggSocketFactory>("ipc:///tmp/transport_test");
     }
 
     void TearDown() override {

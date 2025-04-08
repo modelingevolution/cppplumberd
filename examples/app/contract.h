@@ -3,11 +3,11 @@
 namespace app {
 
 	enum COMMANDS : unsigned int {
-		SETTER = 1,
-		CREATE_REACTIVE_SUBSCRIPTION = 2,
-		START_REACTIVE_SUBSCRIPTION = 3,
+		SETTER = 0xFF + 1,
+		CREATE_REACTIVE_SUBSCRIPTION = 0xFF + 2,
+		START_REACTIVE_SUBSCRIPTION = 0xFF + 3,
 	};
 	enum EVENTS : unsigned int {
-		PROPERTY_CHANGED = 1,
+		PROPERTY_CHANGED = 0xFF + 1,
 	};
 }

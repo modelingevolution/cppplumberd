@@ -24,8 +24,9 @@ namespace cppplumberd {
     {
     public:
         explicit ClientProtoSubscriptionStream(std::unique_ptr<ITransportSubscribeSocket> socket, 
-            const shared_ptr<IEventDispatcher> &dispatcher, const string &streamName)
-			: _socket(std::move(socket)), _running(false), _dispatcher(dispatcher), _streamName(streamName) {
+            const shared_ptr<IEventDispatcher> &dispatcher, shared_ptr<MessageSerializer> serializer, const string &streamName)
+			: _socket(std::move(socket)), _running(false), _dispatcher(dispatcher), _streamName(streamName), _serializer(serializer)
+    	{
     	
             if (!_socket) {
                 throw std::invalid_argument("Socket cannot be null");
@@ -56,7 +57,7 @@ namespace cppplumberd {
 		shared_ptr<IEventDispatcher> _dispatcher;
 		string _streamName;
         std::unique_ptr<ITransportSubscribeSocket> _socket;
-        shared_ptr<MessageSerializer> _serializer = std::make_shared<MessageSerializer>();
+        shared_ptr<MessageSerializer> _serializer;
         
         bool _running;
         

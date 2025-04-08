@@ -5,10 +5,10 @@
 #include <filesystem>
 #include <nngpp/nngpp.h>
 #include "cppplumberd/transport_interfaces.hpp"
-#include "ngg_publish_socket.hpp"
-#include "ngg_subscribe_socket.hpp"
-#include "ngg_req_rsp_client_socket.hpp"
-#include "ngg_req_rsp_server_socket.hpp"
+#include "nng_publish_socket.hpp"
+#include "nng_subscribe_socket.hpp"
+#include "nng_req_rsp_client_socket.hpp"
+#include "nng_req_rsp_server_socket.hpp"
 
 namespace cppplumberd {
 
@@ -16,7 +16,7 @@ namespace cppplumberd {
     namespace fs = std::filesystem;
 
     // NNG Socket Factory implementation using nngcpp - fail fast approach
-    class NngSocketFactory : public ISocketFactory {
+    class NggSocketFactory : public ISocketFactory {
     private:
         string _rootUrl;
 
@@ -34,7 +34,7 @@ namespace cppplumberd {
         }
 
     public:
-        explicit NngSocketFactory(string defaultUrl = "ipc:///tmp/cppplumberd")
+        explicit NggSocketFactory(string defaultUrl = "ipc:///tmp/cppplumberd")
             : _rootUrl(std::move(defaultUrl)) {
             EnsureDirectoryExists(_rootUrl);
         }

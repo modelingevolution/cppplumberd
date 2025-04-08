@@ -37,6 +37,11 @@ public:
 // Test Event handler that will process the Event
 class TestReadModel : public EventHandlerBase, public IEventHandler<PropertyChangedEvent> {
 public:
+	TestReadModel()
+	{
+		Map<PropertyChangedEvent, app::testing::EVENTS::PROPERTY_CHANGED>();
+	}
+
     void cppplumberd::IEventHandler<PropertyChangedEvent>::Handle(const Metadata& m, const PropertyChangedEvent& evt) override {
         lock_guard<std::mutex> lock(mtx);
         receivedEvent = evt;
@@ -70,20 +75,23 @@ private:
 // Test Fixture for Event Flow Tests
 class EventFlowTest : public Test {
 protected:
+	unique_ptr<ISubscription> _sub;
+
     void SetUp() override {
         // Create socket factory
-        socketFactory = make_shared<NngSocketFactory>("ipc:///tmp/Event_flow_test");
+        socketFactory = make_shared<NggSocketFactory>("ipc:///tmp/Event_flow_test");
 		_testModel = make_shared<TestReadModel>();
         // Create server and client
         server = Plumber::CreateServer(socketFactory, "x");
         client = PlumberClient::CreateClient(socketFactory, "x");
 
-        server->AddCommandHandler<TestCommandPublishingHandler, SetterCommand, COMMANDS::SETTER>(server->EventStore());
+        server->AddCommandHandler<TestCommandPublishingHandler, SetterCommand, app::testing::COMMANDS::SETTER>(server->EventStore());
+        server->RegisterMessage<PropertyChangedEvent, app::testing::EVENTS::PROPERTY_CHANGED>();
         server->Start();
 
-        client->SubscriptionManager()->Subscribe("foo", _testModel);
-        
-
+        this->_sub = client->SubscriptionManager()->Subscribe("foo", _testModel);
+        client->CommandBus()->RegisterMessage<SetterCommand, app::testing::COMMANDS::SETTER>();
+        client->RegisterMessage<PropertyChangedEvent, app::testing::EVENTS::PROPERTY_CHANGED>();
         // Give the server time to start
         this_thread::sleep_for(chrono::milliseconds(100));
 

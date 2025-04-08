@@ -59,7 +59,7 @@ class CommandFlowTest : public Test {
 protected:
     void SetUp() override {
         // Create socket factory
-        socketFactory = make_shared<NngSocketFactory>("ipc:///tmp/command_flow_test");
+        socketFactory = make_shared<NggSocketFactory>("ipc:///tmp/command_flow_test");
 
         // Create server and client
         server = Plumber::CreateServer(socketFactory, "x");
@@ -67,10 +67,10 @@ protected:
 
         // Register command handler on server
         commandHandler = make_shared<TestCommandHandler>();
-        server->AddCommandHandler<SetterCommand, COMMANDS::SETTER>(commandHandler);
+        server->AddCommandHandler<SetterCommand, app::testing::COMMANDS::SETTER>(commandHandler);
 
         // Register command on client
-        client->CommandBus()->RegisterMessage<SetterCommand, COMMANDS::SETTER>();
+        client->CommandBus()->RegisterMessage<SetterCommand, app::testing::COMMANDS::SETTER>();
 
         // Start server and client
         server->Start();

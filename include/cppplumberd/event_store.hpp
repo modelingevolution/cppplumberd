@@ -15,8 +15,10 @@ using namespace std::chrono;
 using namespace boost::signals2;
 namespace cppplumberd {
 
+	
 	class EventStore
 	{
+		
 		class SubscriptionManager : ISubscriptionManager
 		{
 			
@@ -93,6 +95,8 @@ namespace cppplumberd {
 		unique_ptr<SubscriptionManager> _subscriptionManager;
 		shared_ptr<MessageSerializer> _serializer;
 		shared_ptr<ISocketFactory> _socketFactory;
+		
+
 	public:
 		template<typename TMessage, unsigned int MessageId>
 		void RegisterMessage()
@@ -104,20 +108,23 @@ namespace cppplumberd {
 		{
 			_subscriptionManager = make_unique<SubscriptionManager>(this);
 			_serializer = make_shared<MessageSerializer>();
+			
 		}
 		EventStore(shared_ptr<ISocketFactory> socketFactory)
 			: _socketFactory(socketFactory)
 		{
 			_subscriptionManager = make_unique<SubscriptionManager>(this);
 			_serializer = make_shared<MessageSerializer>();
+			
 		}
 		EventStore(shared_ptr<ISocketFactory> socketFactory, shared_ptr<MessageSerializer> serializer)
 		{
 			_socketFactory = socketFactory;
 			_subscriptionManager = make_unique<SubscriptionManager>(this);
 			_serializer = serializer;
+			
 		}
-
+		
 		virtual void CreateStream(const string& streamName)
 		{
 			auto h = make_shared<ProtoPublishHandler>(_socketFactory->CreatePublishSocket(streamName), _serializer);
