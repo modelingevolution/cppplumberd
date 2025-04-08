@@ -90,8 +90,7 @@ namespace cppplumberd {
             offset += payloadSize;
 
             // Send the framed message
-            std::string message(reinterpret_cast<char*>(buffer.data()), offset);
-            _socket->Send(message);
+            _socket->Send(buffer.data(), offset);
         }
 
     private:

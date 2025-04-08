@@ -25,7 +25,7 @@ class MockTransportPublishSocket : public ITransportPublishSocket {
 public:
     MOCK_METHOD(void, Start, (), (override));
     MOCK_METHOD(void, Start, (const string& url), (override));
-    MOCK_METHOD(void, Send, (const string& data), (override));
+    MOCK_METHOD(void, Send, (const uint8_t *data, const size_t size), (override));
 };
 
 // Mock for ITransportSubscribeSocket
@@ -35,8 +35,8 @@ public:
     MOCK_METHOD(void, Start, (const string& url), (override));
 
     // Method to simulate receiving a message
-    void SimulateReceive(const string& message) {
-        Received(message);
+    void SimulateReceive(const uint8_t* data, const size_t size) {
+        Received(data,size);
     }
 };
 
@@ -115,7 +115,9 @@ TEST_F(PublishSubscribeIntegrationTest, PublishEventIsReceivedBySubscriber) {
 
     // 3. Set up the publish socket mock to capture the message
     string capturedMessage;
-    EXPECT_CALL(*mockPubSocket, Send(_))
+    
+
+    EXPECT_CALL(*mockPubSocket, Send(_,_))
         .WillOnce(DoAll(
             SaveArg<0>(&capturedMessage),
             Return()

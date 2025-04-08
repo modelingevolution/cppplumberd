@@ -20,14 +20,16 @@ namespace cppplumberd {
         nng::socket _socket;
         bool _connected = false;
         thread _recvThread;
+        constexpr unsigned long long BUFFER_SIZE = 1024 * 64;
         atomic<bool> _running{ false };
 
         void ReceiveLoop() {
             while (_running) {
                 try {
-                    nng::buffer buf = _socket.recv();
-                    string data(static_cast<const char*>(buf.data()), buf.size());
-                    Received(data);
+					uint8_t buf[BUFFER_SIZE];
+                    auto rec = _socket.recv(nng::view(buf, BUFFER_SIZE));
+                    
+                    Received(buf, rec);
                 }
                 catch (const nng::exception& e) {
                     if (!_running) {

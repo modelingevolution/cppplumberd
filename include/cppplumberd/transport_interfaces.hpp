@@ -22,17 +22,16 @@ namespace cppplumberd {
 	};
 	class ITransportPublishSocket : public ISocket {
 	public:
-		virtual void Send(const string& data) = 0;
+		virtual void Send(const uint8_t* buffer, const size_t size) = 0;
 	};
 	class ITransportSubscribeSocket : public ISocket {
 	public:
-		using ReceivedSignal = signal<void(const string&)>;
+		using ReceivedSignal = signal<void(const uint8_t* buffer, const size_t size)>;
 		ReceivedSignal Received;
 
 	};
 	class ITransportReqRspClientSocket : public ISocket {
 	public:
-		virtual string Send(const string& data) = 0;
 		virtual size_t Send(const uint8_t* inBuf, const size_t inSize, uint8_t* outBuf, const size_t outMaxBufSize) = 0;
 	};
 	class ITransportReqRspSrvSocket : public ISocket {
