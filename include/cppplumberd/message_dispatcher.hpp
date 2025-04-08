@@ -26,12 +26,14 @@ namespace cppplumberd
 
         template<typename TMessage, unsigned int MessageId>
         void RegisterHandler(function<TRsp(const TMeta&, const TMessage&)> handler) {
-            static_assert(is_base_of<MessagePtr, TMessage>::value,
-                "TMessage must derive from MessagePtr");
+            /*static_assert(is_base_of<MessagePtr, TMessage>::value,
+                "TMessage must derive from MessagePtr");*/
 
             // Store the message type for runtime type checking
-            _messageTypes[MessageId] = type_index(typeid(TMessage));
-            _typeToIdMap[type_index(typeid(TMessage))] = MessageId;
+            /*_messageTypes[MessageId] = type_index(typeid(TMessage));
+            _typeToIdMap[type_index(typeid(TMessage))] = MessageId;*/
+            _messageTypes.insert_or_assign(MessageId, type_index(typeid(TMessage)));
+            _typeToIdMap.insert_or_assign(type_index(typeid(TMessage)), MessageId);
 
             // Create an adapter function that downcasts the Message* to TMessage*
             _handlers[MessageId] = [handler](const TMeta& metadata, MessagePtr msg) -> TRsp {

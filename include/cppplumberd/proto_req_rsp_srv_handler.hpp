@@ -91,7 +91,7 @@ namespace cppplumberd {
                     handler(request);
                     CommandResponse rsp;
                     rsp.set_status_code(200);
-                    return _outBuffer->Write(rsp, nullptr);
+                    return _outBuffer->Write(rsp);
                 }
             );
         }

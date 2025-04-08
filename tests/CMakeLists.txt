@@ -34,6 +34,7 @@ set(TEST_SOURCES
     transport_tests.cpp
     ngg.cpp
     proto_pub_sub_handlers_tests.cpp
+    proto_req_rsp_handlers_tests.cpp
 )
 
 # Single test executable

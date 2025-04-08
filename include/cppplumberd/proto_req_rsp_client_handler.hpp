@@ -22,31 +22,66 @@ namespace cppplumberd {
 		// Map of message types to exception factories
 		std::unordered_map<unsigned int, std::function<void(const std::string&, MessagePtr, unsigned int)>> _exceptionFactories;
 
-		// Helper method to process response using ProtoFrameBuffer
-		template<typename TRsp>
-		TRsp ProcessResponse(const ProtoFrameBuffer<64 * 1024>& frameBuffer, size_t received) {
+		
+		unique_ptr<CommandResponse> OnResponse(const ProtoFrameBuffer<64 * 1024>& frameBuffer, MessagePtr& payloadPtr)
+		{
 			if (frameBuffer.Written() < 8) {
 				throw std::runtime_error("Response too short");
 			}
-
-
 			// Use a selector function that extracts the message type from the response header
 			auto responseTypeSelector = [](const CommandResponse& header) -> unsigned int {
 				// Return 0 if no response type (for void responses) or the actual response type
 				return header.response_type();
-				};
+			};
 
 			// Parse using ProtoFrameBuffer
-
-			MessagePtr payloadPtr = nullptr;
-
-
+			payloadPtr = nullptr;
 
 			auto response = frameBuffer.Read<CommandResponse>(responseTypeSelector, payloadPtr);
 			if (!response) {
 				delete payloadPtr;
 				throw std::runtime_error("Failed to parse command response header");
 			}
+			return response;
+		}
+		void ProcessResponse(const ProtoFrameBuffer<64 * 1024>& frameBuffer, size_t received)
+		{
+			MessagePtr payloadPtr;
+			auto response = OnResponse(frameBuffer, payloadPtr);
+			if (response->status_code() >= 300 || response->status_code() < 200) {
+
+				std::string errorMsg = response->error_message();
+				auto status = response->status_code();
+
+				if (payloadPtr != nullptr) {
+					// Find the exception factory for this error type
+					auto factoryIt = _exceptionFactories.find(response->response_type());
+					if (factoryIt != _exceptionFactories.end()) {
+						factoryIt->second(errorMsg, payloadPtr, status);
+						// Should never reach here
+					}
+
+					delete payloadPtr;
+					payloadPtr = nullptr;
+				}
+
+				throw FaultException(errorMsg, status);
+			}
+			// fail fast.
+			if (payloadPtr != nullptr) {
+				
+				// Clean up
+				delete payloadPtr;
+
+				throw std::runtime_error("Response type mismatch");
+			}
+		}
+		// Helper method to process response using ProtoFrameBuffer
+		template<typename TRsp>
+		TRsp ProcessResponse(const ProtoFrameBuffer<64 * 1024>& frameBuffer, size_t received) {
+			
+			MessagePtr payloadPtr;
+			auto response = OnResponse(frameBuffer, payloadPtr);
 
 			// Check for errors
 			if (response->status_code() >= 300 || response->status_code() < 200) {
@@ -100,7 +135,11 @@ namespace cppplumberd {
 				throw std::invalid_argument("Socket cannot be null");
 			}
 		}
-
+		template<typename TReq, unsigned int ReqId>
+		void RegisterRequest() {
+			_serializer->RegisterMessage<TReq, ReqId>();
+			
+		}
 		// Register request-response pair
 		template<typename TReq, unsigned int ReqId, typename TRsp, unsigned int RspId>
 		void RegisterRequestResponse() {
@@ -125,10 +164,19 @@ namespace cppplumberd {
 				throw TypedFaultException<TError>(MessageId, errorCode, message, typedError);
 				};
 		}
+		template<typename TReq>
+		void Send(const TReq& request)
+		{
+			ProtoFrameBuffer<64 * 1024> outBuf(_serializer);
+			size_t received;
+			OnSend<TReq>(request, outBuf, received);
+			// Process the response
+			return ProcessResponse(outBuf, received);
+		}
 
-		// Send request and receive response
-		template<typename TReq, typename TRsp>
-		TRsp Send(const TReq& request) {
+		template <typename TReq>
+		void OnSend(const TReq& request, ProtoFrameBuffer<64 * 1024>& outBuf, size_t& received)
+		{
 			// Ensure connected
 			if (!_connected) {
 				_socket->Start();
@@ -137,7 +185,7 @@ namespace cppplumberd {
 
 			// Create a local frame buffer instance for thread safety
 			ProtoFrameBuffer<64 * 1024> inBuf(_serializer);
-			ProtoFrameBuffer<64 * 1024> outBuf(_serializer);
+			outBuf = _serializer;
 
 			// Create command header
 			CommandHeader header;
@@ -148,8 +196,16 @@ namespace cppplumberd {
 			inBuf.Write<CommandHeader, TReq>(header, request);
 			outBuf.Reset();
 
-			auto received = _socket->Send(inBuf.Get(), inBuf.Written(), outBuf.Get(), outBuf.FreeBytes());
+			received = _socket->Send(inBuf.Get(), inBuf.Written(), outBuf.Get(), outBuf.FreeBytes());
 			outBuf.AckWritten(received);
+		}
+
+		// Send request and receive response
+		template<typename TReq, typename TRsp>
+		TRsp Send(const TReq& request) {
+			ProtoFrameBuffer<64 * 1024> outBuf(_serializer);
+			size_t received;
+			OnSend<TReq>(request, outBuf, received);
 			// Process the response
 			return ProcessResponse<TRsp>(outBuf, received);
 		}

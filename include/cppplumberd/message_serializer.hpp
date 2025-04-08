@@ -78,7 +78,10 @@ namespace cppplumberd
             requires HasParseFromString<TMessage>
         inline void RegisterMessage() {
 	        type_index typeIdx = type_index(typeid(TMessage));
-            if (_messageIdMap.find(MessageId) != _messageIdMap.end()) {
+            auto it = _typeIdMap.find(typeIdx);
+            if (it != _typeIdMap.end()) {
+                if (it->second == MessageId)
+                    return;
                 throw runtime_error("Message ID already registered");
             }
             _typeIdMap[typeIdx] = MessageId;

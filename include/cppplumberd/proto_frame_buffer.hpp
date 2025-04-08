@@ -70,6 +70,11 @@ namespace cppplumberd {
             return _written;
         }
         template<typename THeader>
+        inline size_t Write(const THeader& header)
+        {
+            return Write(header, static_cast<MessagePtr>(nullptr));
+        }
+        template<typename THeader>
         inline size_t Write(const THeader& header, MessagePtr ptr)
         {
             size_t offset = _written + 8;
@@ -91,6 +96,7 @@ namespace cppplumberd {
 
             if (ptr == nullptr)
             {
+                sizePtr[1] = 0;
                 _written = offset;
                 return _written;
             }
@@ -119,7 +125,7 @@ namespace cppplumberd {
         }
 
         template<typename THeader>
-        inline unique_ptr<THeader> Read(function<unsigned int(THeader&)> payloadMessageIdSelector, MessagePtr& msgPtr, size_t offset = 0)
+        inline unique_ptr<THeader> Read(function<unsigned int(THeader&)> payloadMessageIdSelector, MessagePtr& msgPtr, size_t offset = 0) const
         {
             // Check if buffer is large enough for header and payload sizes
             if (_written < 8) {
@@ -146,8 +152,11 @@ namespace cppplumberd {
 
             unsigned int payloadType = payloadMessageIdSelector(*typedHeader);
             auto payloadBytes = headerBytes + headerSize;
+            if (payloadSize > 0 && payloadType > 0)
+				msgPtr = _serializer->Deserialize(payloadBytes, payloadSize, payloadType);
+            if ((payloadSize == 0) ^ (payloadType == 0))
+				throw std::runtime_error("Payload size and type mismatch");
 
-            msgPtr = _serializer->Deserialize(payloadBytes, payloadSize, payloadType);
             return typedHeader;
         }
 
@@ -160,7 +169,7 @@ namespace cppplumberd {
     class ProtoFrameBuffer : public ProtoFrameBufferView
     {
     public: ProtoFrameBuffer(shared_ptr<MessageSerializer> s) : ProtoFrameBufferView(s, _buffer, size) {}
-    public: ProtoFrameBuffer() : ProtoFrameBuffer(make_shared<MessageSerializer>(), _buffer, size) {}
+    public: ProtoFrameBuffer() : ProtoFrameBufferView(make_shared<MessageSerializer>(), _buffer, size) {}
     private:
         uint8_t _buffer[size];
     };
