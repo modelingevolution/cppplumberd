@@ -39,7 +39,7 @@ namespace cppplumberd {
             uint32_t* sizePtr = reinterpret_cast<uint32_t*>(_buffer);
 
             // Serialize header directly to buffer
-            if (!header.SerializeToArray(_buffer + offset, _capacity - offset)) {
+            if (!header.SerializeToArray(_buffer + offset, static_cast<int>(_capacity - offset))) {
                 throw std::runtime_error("Failed to serialize header");
             }
 
@@ -51,7 +51,7 @@ namespace cppplumberd {
             offset += headerSize;
 
             // Serialize payload directly to buffer
-            if (!payload.SerializeToArray(_buffer + offset, _capacity - offset)) {
+            if (!payload.SerializeToArray(_buffer + offset,static_cast<int>(_capacity - offset))) {
                 throw std::runtime_error("Failed to serialize message payload");
             }
 
@@ -83,7 +83,7 @@ namespace cppplumberd {
             uint32_t* sizePtr = reinterpret_cast<uint32_t*>(_buffer);
 
             // Serialize header directly to buffer
-            if (!header.SerializeToArray(_buffer + offset, _capacity - offset)) {
+            if (!header.SerializeToArray(_buffer + offset, static_cast<int>(_capacity - offset))) {
                 throw std::runtime_error("Failed to serialize header");
             }
 
@@ -102,7 +102,7 @@ namespace cppplumberd {
             }
 
             // Serialize payload directly to buffer
-            if (!ptr->SerializeToArray(_buffer + offset, _capacity - offset)) {
+            if (!ptr->SerializeToArray(_buffer + offset, static_cast<int>(_capacity - offset))) {
                 throw std::runtime_error("Failed to serialize message payload");
             }
 

@@ -29,7 +29,7 @@ namespace cppplumberd {
             _handler->RegisterHandlerWithMetadata<TCommand>([handler](const CommandHeader &h, const TCommand& cmd) {
                 // Here we would normally pass the stream_id, but for simplicity
                 // we're using an empty string since we don't have access to it
-                handler->Handle(h.Recipient(), cmd);
+                handler->Handle(h.recipient(), cmd);
                 });
         }
 

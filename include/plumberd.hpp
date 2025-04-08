@@ -25,6 +25,7 @@
 #include "cppplumberd/proto_req_rsp_srv_handler.hpp"
 #include "cppplumberd/proto_req_rsp_client_handler.hpp"
 #include "cppplumberd/command_bus.hpp"
+#include "cppplumberd/command_service_handler.hpp"
 #include <memory>
 #include <string>
 #include <thread>
@@ -52,16 +53,8 @@ namespace cppplumberd {
 	};
 
 
-	class Metadata
-	{
-	};
 
-	template<typename TEvent>
-	class IEventHandler {
-	public:
-		virtual void Handle(const Metadata& metadata, const TEvent& evt) = 0;
-		virtual ~IEventHandler() = default;
-	};
+	
 
 	class IEventDispatcher
 	{
@@ -86,26 +79,6 @@ namespace cppplumberd {
 		{ t.ErrorCode() } -> same_as<unsigned short>;
 	};
 
-	template<typename TCommand>
-	class ICommandHandler {
-	public:
-		virtual void Handle(const string& stream_id, const TCommand& cmd) = 0;
-		virtual ~ICommandHandler() = default;
-	};
-
-	class CommandServiceHandler {
-	public:
-		template<typename TCommand>
-		void RegisterHandler(const shared_ptr<ICommandHandler<TCommand>>& handler) {}
-
-		template<TException T, unsigned int MessageId>
-		void RegisterError() {}
-
-		void Start() {}
-		void Stop() {}
-	private:
-		unique_ptr<ProtoReqRspSrvHandler> _handler;
-	};
 
 	/* Can be used on Client side or Server side */
 	class ISubscriptionManager

@@ -220,7 +220,7 @@ TEST_F(PublishSubscribeIntegrationTest, HandlesMultipleEvents) {
             });
 
     EXPECT_CALL(*mockPubSocket, Send(_, _))
-        .Times(sentEvents.size());
+        .Times(static_cast<int>(sentEvents.size()));
 
     // Start handlers
     EXPECT_CALL(*mockPubSocket, Start()).Times(1);

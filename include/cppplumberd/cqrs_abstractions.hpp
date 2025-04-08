@@ -8,10 +8,21 @@
 
 namespace cppplumberd {
 
+
+    class Metadata
+    {
+    };
+
     template<typename TCommand>
     class ICommandHandler {
     public:
         virtual void Handle(const std::string& stream_id, const TCommand& cmd) = 0;
         virtual ~ICommandHandler() = default;
+    };
+    template<typename TEvent>
+    class IEventHandler {
+    public:
+        virtual void Handle(const Metadata& metadata, const TEvent& evt) = 0;
+        virtual ~IEventHandler() = default;
     };
 }

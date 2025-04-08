@@ -98,7 +98,7 @@ namespace cppplumberd
             const auto& typeInfo = it->second;
 
             MessagePtr msg = typeInfo.CreateMessage();
-            if (!msg->ParseFromArray(data, size)) {
+            if (!msg->ParseFromArray(data, static_cast<int>(size))) {
                 throw runtime_error("Failed to parse message");
             }
             return msg;
@@ -140,7 +140,7 @@ namespace cppplumberd
         inline void Serialize(const MessagePtr ptr, uint8_t* buffer, size_t offset, size_t size)
         {
             // Create a zero-copy output stream over the buffer starting at the offset
-            google::protobuf::io::ArrayOutputStream arrayStream(buffer + offset, size);
+            google::protobuf::io::ArrayOutputStream arrayStream(buffer + offset, static_cast<int>(size));
 
             // Serialize the message to the zero-copy stream
             if (!ptr->SerializeToZeroCopyStream(&arrayStream)) {
