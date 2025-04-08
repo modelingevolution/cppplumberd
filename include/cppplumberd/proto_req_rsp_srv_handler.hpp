@@ -45,7 +45,7 @@ namespace cppplumberd {
                 rsp.set_response_type(f.MessageTypeId());
                 // we need to serialize exception and return;
                 _outBuffer->Write(rsp, f.Get());
-                return _outBuffer->Size();
+                return _outBuffer->Written();
             }
         }
         unique_ptr<ProtoFrameBuffer<64 * 1024>> _inBuffer;

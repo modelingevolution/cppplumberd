@@ -17,15 +17,14 @@ using namespace cppplumberd;
 using namespace std;
 using namespace testing;
 using namespace std::chrono;
-using namespace cppplumberd;
-using namespace std;
 using namespace app::testing;
+
 // Mock for ITransportPublishSocket
 class MockTransportPublishSocket : public ITransportPublishSocket {
 public:
     MOCK_METHOD(void, Start, (), (override));
     MOCK_METHOD(void, Start, (const string& url), (override));
-    MOCK_METHOD(void, Send, (const uint8_t *data, const size_t size), (override));
+    MOCK_METHOD(void, Send, (const uint8_t* data, const size_t size), (override));
 };
 
 // Mock for ITransportSubscribeSocket
@@ -35,8 +34,8 @@ public:
     MOCK_METHOD(void, Start, (const string& url), (override));
 
     // Method to simulate receiving a message
-    void SimulateReceive(const uint8_t* data, const size_t size) {
-        Received(data,size);
+    void SimulateReceive(uint8_t* data, size_t size) {
+        Received(data, size);
     }
 };
 
@@ -114,12 +113,13 @@ TEST_F(PublishSubscribeIntegrationTest, PublishEventIsReceivedBySubscriber) {
     sentEvent.set_value_data(valueData);
 
     // 3. Set up the publish socket mock to capture the message
-    string capturedMessage;
-    
+    vector<uint8_t> capturedData;
+    size_t capturedSize = 0;
 
-    EXPECT_CALL(*mockPubSocket, Send(_,_))
+    EXPECT_CALL(*mockPubSocket, Send(_, _))
         .WillOnce(DoAll(
-            SaveArg<0>(&capturedMessage),
+            SaveArg<0>(&capturedData),
+            SaveArg<1>(&capturedSize),
             Return()
         ));
 
@@ -135,10 +135,10 @@ TEST_F(PublishSubscribeIntegrationTest, PublishEventIsReceivedBySubscriber) {
 
     // 6. Wait for message to be sent
     Mock::VerifyAndClearExpectations(mockPubSocket.get());
-    ASSERT_FALSE(capturedMessage.empty()) << "No message was captured from the publish handler";
+    ASSERT_GT(capturedSize, 0) << "No message was captured from the publish handler";
 
     // 7. Feed the captured message to the subscribe socket
-    mockSubSocket->SimulateReceive(capturedMessage);
+    mockSubSocket->SimulateReceive(capturedData.data(), capturedSize);
 
     // 8. Wait for the event to be received and processed
     WaitForEvent();
@@ -200,12 +200,16 @@ TEST_F(PublishSubscribeIntegrationTest, HandlesMultipleEvents) {
     }
 
     // Set up to capture all messages
-    vector<string> capturedMessages;
-    EXPECT_CALL(*mockPubSocket, Send(_))
+    vector<vector<uint8_t>> capturedMessages;
+    vector<size_t> capturedSizes;
+
+    EXPECT_CALL(*mockPubSocket, Send(_, _))
         .Times(sentEvents.size())
         .WillRepeatedly(DoAll(
-            Invoke([&capturedMessages](const string& msg) {
-                capturedMessages.push_back(msg);
+            WithArgs<0, 1>([&capturedMessages, &capturedSizes](const uint8_t* data, size_t size) {
+                vector<uint8_t> message(data, data + size);
+                capturedMessages.push_back(message);
+                capturedSizes.push_back(size);
                 }),
             Return()
         ));
@@ -227,8 +231,8 @@ TEST_F(PublishSubscribeIntegrationTest, HandlesMultipleEvents) {
     ASSERT_EQ(capturedMessages.size(), sentEvents.size());
 
     // Feed all captured messages to the subscriber
-    for (const auto& msg : capturedMessages) {
-        mockSubSocket->SimulateReceive(msg);
+    for (size_t i = 0; i < capturedMessages.size(); i++) {
+        mockSubSocket->SimulateReceive(capturedMessages[i].data(), capturedSizes[i]);
     }
 
     // Wait for all events to be processed

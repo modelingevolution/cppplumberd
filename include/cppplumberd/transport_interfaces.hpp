@@ -26,7 +26,7 @@ namespace cppplumberd {
 	};
 	class ITransportSubscribeSocket : public ISocket {
 	public:
-		using ReceivedSignal = signal<void(const uint8_t* buffer, const size_t size)>;
+		using ReceivedSignal = signal<void(uint8_t* buffer, size_t size)>;
 		ReceivedSignal Received;
 
 	};

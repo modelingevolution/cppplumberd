@@ -43,7 +43,6 @@ namespace cppplumberd {
                 throw runtime_error("Socket not connected");
             }
 
-            // Send the request data with view
             nng::view view(inBuf, inSize);
             _socket.send(view);
 
@@ -52,20 +51,6 @@ namespace cppplumberd {
 
             return result;
         }
-        string Send(const string& data) override {
-            if (!_connected) {
-                throw runtime_error("Socket not connected");
-            }
 
-            // Send the request data with view
-            nng::view view(data.data(), data.size());
-            _socket.send(view);
-
-            // Receive response as a buffer
-            nng::buffer buffer = _socket.recv();
-
-            // Convert buffer to string and return
-            return string(static_cast<const char*>(buffer.data()), buffer.size());
-        }
     };
 }

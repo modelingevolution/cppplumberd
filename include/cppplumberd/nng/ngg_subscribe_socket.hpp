@@ -20,7 +20,7 @@ namespace cppplumberd {
         nng::socket _socket;
         bool _connected = false;
         thread _recvThread;
-        constexpr unsigned long long BUFFER_SIZE = 1024 * 64;
+        constexpr static unsigned long long BUFFER_SIZE = 1024 * 64;
         atomic<bool> _running{ false };
 
         void ReceiveLoop() {

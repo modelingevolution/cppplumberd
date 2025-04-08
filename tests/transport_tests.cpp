@@ -69,7 +69,8 @@ TEST(NggppTest, PubSub) {
 // Test publish-subscribe pattern
 TEST_F(TransportTest, PubSubTest) {
     // Set up a subscriber that will collect messages
-    vector<string> receivedMessages;
+    vector<vector<uint8_t>> receivedData;
+    vector<string> receivedStrings; // For verification
     std::mutex messagesMutex;
     condition_variable messagesCV;
 
@@ -78,18 +79,24 @@ TEST_F(TransportTest, PubSubTest) {
     this_thread::sleep_for(chrono::milliseconds(100));
 
     auto subscriber = factory->CreateSubscribeSocket(pub_sub);
-    
-    // Set up subscriber callback
-    subscriber->Received.connect([&](const string& message) {
+
+    // Set up subscriber callback with buffer-based version
+    subscriber->Received.connect([&](const uint8_t* buffer, const size_t size) {
+        // Create a string for debugging and verification
+        string message(reinterpret_cast<const char*>(buffer), size);
         cout << "message received: " << message << endl;
+
         {
             lock_guard<std::mutex> lock(messagesMutex);
-            receivedMessages.push_back(message);
+            // Store both binary and string versions
+            vector<uint8_t> data(buffer, buffer + size);
+            receivedData.push_back(data);
+            receivedStrings.push_back(message);
         }
         messagesCV.notify_one();
         });
-    subscriber->Start();
 
+    subscriber->Start();
 
     // Test messages
     const vector<string> testMessages = {
@@ -98,32 +105,30 @@ TEST_F(TransportTest, PubSubTest) {
         "Third Message"
     };
 
-    // Send messages
+    // Send messages using the binary buffer interface
     for (const auto& msg : testMessages) {
-        publisher->Send(msg);
-        cout << "message send: " << msg << endl;
+        publisher->Send(reinterpret_cast<const uint8_t*>(msg.data()), msg.size());
+        cout << "message sent: " << msg << endl;
     }
+
     this_thread::sleep_for(chrono::milliseconds(350)); // Allow time for delivery
+
     {
         unique_lock<std::mutex> lock(messagesMutex);
         ASSERT_TRUE(messagesCV.wait_for(lock, chrono::seconds(2),
-            [&]() { return receivedMessages.size() >= testMessages.size(); }));
+            [&]() { return receivedData.size() >= testMessages.size(); }));
     }
 
     // Verify received messages
-    ASSERT_EQ(receivedMessages.size(), testMessages.size());
+    ASSERT_EQ(receivedStrings.size(), testMessages.size());
     for (size_t i = 0; i < testMessages.size(); ++i) {
-        EXPECT_EQ(receivedMessages[i], testMessages[i]);
+        EXPECT_EQ(receivedStrings[i], testMessages[i]);
     }
 }
 
 // Test request-reply pattern
 TEST_F(TransportTest, ReqRepTest) {
-    
     auto server = factory->CreateReqRspSrvSocket(req_rsp);
-
-    
-    //server->Initialize([](const string& message) -> string { return "Echo: " + message; });
     server->Start();
 
     this_thread::sleep_for(chrono::milliseconds(200));
@@ -131,31 +136,56 @@ TEST_F(TransportTest, ReqRepTest) {
     auto client = factory->CreateReqRspClientSocket(req_rsp);
     this_thread::sleep_for(chrono::milliseconds(100));
     client->Start();
-    
+
     StopWatch totalSw = StopWatch::StartNew();
-    string response = client->Send("Hello, Server!");
-    EXPECT_EQ(response, "Echo: Hello, Server!");
+
+    // Use buffer-based version for the first test
+    string requestStr = "Hello, Server!";
+    string expectedResponse = "Echo: Hello, Server!";
+
+    // Create buffers for request and response
+    vector<uint8_t> requestBuffer(requestStr.begin(), requestStr.end());
+    vector<uint8_t> responseBuffer(1024); // Allocate response buffer
+
+    size_t responseSize = client->Send(
+        requestBuffer.data(),
+        requestBuffer.size(),
+        responseBuffer.data(),
+        responseBuffer.size()
+    );
+
+    string responseStr(reinterpret_cast<char*>(responseBuffer.data()), responseSize);
+    EXPECT_EQ(responseStr, expectedResponse);
 
     // Test multiple request-reply interactions
     for (int i = 1; i <= 5; ++i) {
         string testRequest = "Request " + to_string(i);
+        string expectedResponse = "Echo: " + testRequest;
+
+        vector<uint8_t> reqBuffer(testRequest.begin(), testRequest.end());
+        vector<uint8_t> respBuffer(1024);
 
         // Time each individual request
         StopWatch requestSw = StopWatch::StartNew();
-        string testResponse = client->Send(testRequest);
+
+        size_t respSize = client->Send(
+            reqBuffer.data(),
+            reqBuffer.size(),
+            respBuffer.data(),
+            respBuffer.size()
+        );
+
+        string testResponse(reinterpret_cast<char*>(respBuffer.data()), respSize);
         requestSw.Stop();
 
         requestSw.PrintElapsed("Request " + to_string(i));
-        EXPECT_EQ(testResponse, "Echo: " + testRequest);
+        EXPECT_EQ(testResponse, expectedResponse);
     }
 
     // Stop total timer and print
     totalSw.Stop();
     totalSw.PrintElapsed("Total execution time");
 }
-
-
-
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

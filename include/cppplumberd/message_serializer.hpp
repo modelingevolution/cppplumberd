@@ -114,7 +114,13 @@ namespace cppplumberd
             return msg;
         }
         template<typename TMessage>
-        inline unsigned int GetMessageId() { return _typeIdMap[type_index(typeid(TMessage))]; }
+        inline unsigned int GetMessageId() {
+            auto it = _typeIdMap.find(std::type_index(typeid(TMessage)));
+            if (it == _typeIdMap.end()) {
+                throw std::runtime_error("Message ID not found for type: " + std::string(typeid(TMessage).name()));
+            }
+            return it->second;
+        }
       
         template<typename TMessage>
             requires HasSerializeToZeroCopyStream<TMessage>

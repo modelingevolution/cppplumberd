@@ -42,14 +42,13 @@ namespace cppplumberd {
             _bound = true;
         }
 
-        void Send(const string& data) override {
+        void Send(const uint8_t* buffer, const size_t size) override {
             if (!_bound) {
                 throw runtime_error("Socket not bound");
             }
-            
 
             // Using view to send data directly
-            nng::view view(data.data(), data.size());
+            nng::view view(buffer, size);
             _socket.send(view);
         }
     };

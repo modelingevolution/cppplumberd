@@ -6,6 +6,8 @@
 #include <typeindex>
 #include <unordered_map>
 #include <chrono>
+
+#include "proto_frame_buffer.hpp"
 #include "cppplumberd/transport_interfaces.hpp"
 #include "cppplumberd/message_serializer.hpp"
 #include "cppplumberd/message_dispatcher.hpp"
@@ -28,8 +30,8 @@ namespace cppplumberd {
             }
 
             // Connect to the socket's Received signal
-            _socket->Received.connect([this](const std::string& message) {
-                this->OnMessageReceived(message);
+            _socket->Received.connect([this](uint8_t* buffer, size_t size) {
+                this->OnMessageReceived(buffer, size);
                 });
         }
 
@@ -40,9 +42,7 @@ namespace cppplumberd {
         template<typename TEvent, unsigned int EventId>
             requires HasParseFromString<TEvent>
         void RegisterHandler(std::function<void(const time_point<system_clock>&, const TEvent&)> handler) {
-            // Register the event type with the serializer
-            _serializer.RegisterMessage<TEvent, EventId>();
-
+            
             // Register the handler
             _eventHandlers[EventId] = [handler](const time_point<system_clock>& timestamp, const MessagePtr msg) {
                 const TEvent* typedEvent = dynamic_cast<const TEvent*>(msg);
@@ -64,71 +64,34 @@ namespace cppplumberd {
 
     private:
         std::unique_ptr<ITransportSubscribeSocket> _socket;
-        MessageSerializer _serializer;
+		shared_ptr<MessageSerializer> _serializer = std::make_shared<MessageSerializer>();
         std::unordered_map<unsigned int,
             std::function<void(const time_point<system_clock>&, const MessagePtr)>> _eventHandlers;
         bool _running;
         MessageDispatcher<void, Metadata> _msgDispatcher;
 
-        void OnMessageReceived(const std::string& message) {
+        void OnMessageReceived(uint8_t* buffer, size_t size) {
             if (!_running) return;
 
             try {
-                // Message must be at least 8 bytes (for header size and payload size)
-                if (message.size() < 8) {
-                    throw std::runtime_error("Message too short: " + std::to_string(message.size()) + " bytes");
-                }
-
-                // Get pointer to the first 8 bytes containing sizes
-                const uint32_t* sizePtr = reinterpret_cast<const uint32_t*>(message.data());
-
-                // Extract header and payload sizes
-                uint32_t headerSize = sizePtr[0];
-                uint32_t payloadSize = sizePtr[1];
-
-                // Validate sizes
-                size_t totalExpectedSize = 8 + headerSize + payloadSize;
-                if (message.size() < totalExpectedSize) {
-                    throw std::runtime_error("Message truncated: expected " +
-                        std::to_string(totalExpectedSize) +
-                        " bytes, got " +
-                        std::to_string(message.size()));
-                }
-
-                // Extract header bytes
-                const char* headerBytes = message.data() + 8;
-
-                // Parse header
-                EventHeader header;
-                if (!header.ParseFromArray(headerBytes, headerSize)) {
-                    throw std::runtime_error("Failed to parse event header");
-                }
-
-                // Extract payload bytes
-                const char* payloadBytes = headerBytes + headerSize;
-
-                // Find the handler for this event type
-                auto handlerIt = _eventHandlers.find(header.event_type());
+                ProtoFrameBufferView v(_serializer, buffer, size);
+                v.AckWritten(size);
+                auto responseTypeSelector = [](const EventHeader& header) -> unsigned int { return header.event_type(); };
+				MessagePtr payloadBytes;
+                auto header = v.Read<EventHeader>(responseTypeSelector, payloadBytes);
+                
+                auto handlerIt = _eventHandlers.find(header->event_type());
                 if (handlerIt == _eventHandlers.end()) {
-                    // No handler registered for this event type - silently ignore
                     return;
                 }
 
-                // Deserialize the payload
-                MessagePtr eventMsg = _serializer.Deserialize(
-                    std::string(payloadBytes, payloadSize),
-                    header.event_type()
-                );
-
-                // Create timestamp from header
                 time_point<system_clock> timestamp = system_clock::time_point(
-                    milliseconds(header.timestamp()));
+                    milliseconds(header->timestamp()));
 
-                // Call the handler
-                handlerIt->second(timestamp, eventMsg);
+                handlerIt->second(timestamp, payloadBytes);
 
-                // Clean up
-                delete eventMsg;
+                
+                delete payloadBytes;
             }
             catch (const std::exception& ex) {
                 // Log error but continue processing other messages

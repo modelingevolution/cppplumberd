@@ -25,7 +25,7 @@ namespace cppplumberd {
 		// Helper method to process response using ProtoFrameBuffer
 		template<typename TRsp>
 		TRsp ProcessResponse(const ProtoFrameBuffer<64 * 1024>& frameBuffer, size_t received) {
-			if (frameBuffer.Size() < 8) {
+			if (frameBuffer.Written() < 8) {
 				throw std::runtime_error("Response too short");
 			}
 
@@ -148,7 +148,7 @@ namespace cppplumberd {
 			inBuf.Write<CommandHeader, TReq>(header, request);
 			outBuf.Reset();
 
-			auto received = _socket->Send(inBuf.Get(), inBuf.Size(), outBuf.Get(), outBuf.FreeBytes());
+			auto received = _socket->Send(inBuf.Get(), inBuf.Written(), outBuf.Get(), outBuf.FreeBytes());
 			outBuf.AckWritten(received);
 			// Process the response
 			return ProcessResponse<TRsp>(outBuf, received);
