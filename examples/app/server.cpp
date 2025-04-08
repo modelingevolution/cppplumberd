@@ -63,14 +63,14 @@ namespace app {
 		}
 	};
 
-	class SetterCommandHandler : ICommandHandler<SetterCommand> {
+	class SetterCommandHandler : public ICommandHandler<SetterCommand> {
 	public:
 		void Handle(const string& stream_id, const SetterCommand& cmd) override {
 			// Implementation
 		}
 	};
 
-	class StartReactiveSubscriptionHandler : ICommandHandler<StartReactiveSubscriptionCommand> {
+	class StartReactiveSubscriptionHandler : public ICommandHandler<StartReactiveSubscriptionCommand> {
 	public:
 		void Handle(const string& stream_id, const StartReactiveSubscriptionCommand& cmd) override {
 			// Implementation

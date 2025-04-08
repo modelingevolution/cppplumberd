@@ -19,16 +19,13 @@ namespace cppplumberd {
             }
         }
 
-        template<typename TCommand>
+        template<typename TCommand, unsigned int TCommandId>
         inline void RegisterHandler(const std::shared_ptr<ICommandHandler<TCommand>>& handler) {
             if (!handler) {
                 throw std::invalid_argument("Command handler cannot be null");
             }
 
-            // Register a handler for the command type
-            _handler->RegisterHandlerWithMetadata<TCommand>([handler](const CommandHeader &h, const TCommand& cmd) {
-                // Here we would normally pass the stream_id, but for simplicity
-                // we're using an empty string since we don't have access to it
+            _handler->RegisterHandlerWithMetadata<TCommand, TCommandId>([handler](const CommandHeader &h, const TCommand& cmd) {
                 handler->Handle(h.recipient(), cmd);
                 });
         }

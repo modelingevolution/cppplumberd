@@ -138,56 +138,119 @@ namespace cppplumberd {
 
 	
 
-	class PlumberClient
-	{
-	protected:
-		shared_ptr<ISocketFactory> _socketFactory;
-	public:
+    class PlumberClient {
+    protected:
+        shared_ptr<ISocketFactory> _socketFactory;
+        string _endpoint;
+        shared_ptr<CommandBus> _commandBus;
+        shared_ptr<ISubscriptionManager> _subscriptionManager;
+        bool _isStarted = false;
 
-		static unique_ptr<PlumberClient> CreateClient(shared_ptr<ISocketFactory> factory, const string& endpoint)
-		{
-			return make_unique<PlumberClient>(factory);
-		}
+    public:
+        static unique_ptr<PlumberClient> CreateClient(shared_ptr<ISocketFactory> factory, const string& endpoint) {
+            return make_unique<PlumberClient>(factory, endpoint);
+        }
 
-		PlumberClient(const shared_ptr<ISocketFactory>& factory) {
-			_socketFactory = factory;
-		}
+        PlumberClient(const shared_ptr<ISocketFactory>& factory, const string& endpoint = "")
+            : _socketFactory(factory), _endpoint(endpoint) {
 
-		virtual void Start() {}
-		virtual void Stop() {}
+            // Create command bus
+            auto clientHandler = make_unique<ProtoReqRspClientHandler>(
+                _socketFactory->CreateReqRspClientSocket("commands"));
+            _commandBus = make_shared<cppplumberd::CommandBus>(std::move(clientHandler));
 
-		virtual shared_ptr<CommandBus> CommandBus()
-		{
-			return nullptr;
-		}
+        }
 
-		virtual shared_ptr<ISubscriptionManager> SubscriptionManager()
-		{
-			return nullptr;
-		}
+        virtual void Start() {
+            if (_isStarted) return;
 
-		virtual ~PlumberClient() = default;
-	};
+            _commandBus->Start();
 
-	class Plumber : public PlumberClient
-	{
-	public:
-		static unique_ptr<Plumber> CreateServer(shared_ptr<ISocketFactory> factory, const string& endpoint)
-		{
-			return make_unique<Plumber>(factory);
-		}
+            _isStarted = true;
+        }
 
-		Plumber(shared_ptr<ISocketFactory> factory) : PlumberClient(factory) {}
+        virtual void Stop() {
+            _isStarted = false;
+        }
 
-		template<typename TCommandHandler, typename TCommand, unsigned int MessageId>
-		void AddCommandHandler() {}
+        virtual shared_ptr<CommandBus> CommandBus() {
+            return _commandBus;
+        }
 
-		template<typename TEventHandler, typename TEvent, unsigned int MessageId>
-		void AddEventHandler() {}
+        virtual shared_ptr<ISubscriptionManager> SubscriptionManager() {
+            return _subscriptionManager;
+        }
 
-		template<typename TCommand, unsigned int MessageId>
-		void AddCommandHandler(shared_ptr<ICommandHandler<TCommand>> cmd) {}
-	};
+        virtual ~PlumberClient() = default;
+    };
+
+    // Server-side implementation
+    class Plumber : public PlumberClient {
+    private:
+        shared_ptr<CommandServiceHandler> _commandServiceHandler;
+        
+
+    public:
+        static unique_ptr<Plumber> CreateServer(shared_ptr<ISocketFactory> factory, const string& endpoint) {
+            return make_unique<Plumber>(factory, endpoint);
+        }
+
+        Plumber(shared_ptr<ISocketFactory> factory, const string& endpoint = "")
+            : PlumberClient(factory, endpoint) {
+
+            // Create the command service handler
+            auto srvHandler = make_unique<ProtoReqRspSrvHandler>(
+                _socketFactory->CreateReqRspSrvSocket("commands"));
+            _commandServiceHandler = make_shared<CommandServiceHandler>(move(srvHandler));
+        }
+
+        // Override to provide server-specific start behavior
+        void Start() override {
+            if (_isStarted) return;
+
+            _commandServiceHandler->Start();
+            _isStarted = true;
+        }
+
+        // Override to provide server-specific stop behavior
+        void Stop() override {
+            if (!_isStarted) return;
+
+            _commandServiceHandler->Stop();
+            _isStarted = false;
+        }
+
+        // Override CommandBus to throw an exception since in-proc communication is not yet implemented
+        shared_ptr<cppplumberd::CommandBus> CommandBus() override {
+            throw runtime_error("In-process CommandBus not implemented for server-side. Use CommandServiceHandler directly.");
+        }
+
+        shared_ptr<CommandServiceHandler> GetCommandServiceHandler() {
+            return _commandServiceHandler;
+        }
+
+        // Command handler registration
+        template<typename TCommandHandler, typename TCommand, unsigned int MessageId>
+        void AddCommandHandler() {
+            auto handler = make_shared<TCommandHandler>();
+            
+            auto typedHandler = static_pointer_cast<ICommandHandler<TCommand>>(handler);
+            _commandServiceHandler->RegisterHandler<TCommand, MessageId>(typedHandler);
+        }
+
+        template<typename TCommand, unsigned int MessageId>
+        void AddCommandHandler(shared_ptr<ICommandHandler<TCommand>> handler) {
+            
+            _commandServiceHandler->RegisterHandler<TCommand, MessageId>(handler);
+        }
+
+        // Event handler registration
+        template<typename TEventHandler, typename TEvent, unsigned int MessageId>
+        void AddEventHandler() {
+            auto handler = make_shared<TEventHandler>();
+            
+        }
+    };
 }
 
 #endif // PLUMBERD_HPP
