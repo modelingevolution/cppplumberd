@@ -188,7 +188,7 @@ namespace cppplumberd {
     class Plumber : public PlumberClient {
     private:
         shared_ptr<CommandServiceHandler> _commandServiceHandler;
-        
+		shared_ptr<EventStore> _eventStore;
 
     public:
         static unique_ptr<Plumber> CreateServer(shared_ptr<ISocketFactory> factory, const string& endpoint) {
@@ -219,7 +219,10 @@ namespace cppplumberd {
             _commandServiceHandler->Stop();
             _isStarted = false;
         }
-
+        shared_ptr<cppplumberd::EventStore> EventStore()
+        {
+			return _eventStore;
+        }
         // Override CommandBus to throw an exception since in-proc communication is not yet implemented
         shared_ptr<cppplumberd::CommandBus> CommandBus() override {
             throw runtime_error("In-process CommandBus not implemented for server-side. Use CommandServiceHandler directly.");
@@ -237,7 +240,13 @@ namespace cppplumberd {
             auto typedHandler = static_pointer_cast<ICommandHandler<TCommand>>(handler);
             _commandServiceHandler->RegisterHandler<TCommand, MessageId>(typedHandler);
         }
+        template<typename TCommandHandler, typename TCommand, unsigned int MessageId, typename... Args>
+        void AddCommandHandler(Args&&... args) {
+            auto handler = make_shared<TCommandHandler>(std::forward<Args>(args)...);
 
+            auto typedHandler = static_pointer_cast<ICommandHandler<TCommand>>(handler);
+            _commandServiceHandler->RegisterHandler<TCommand, MessageId>(typedHandler);
+        }
         template<typename TCommand, unsigned int MessageId>
         void AddCommandHandler(shared_ptr<ICommandHandler<TCommand>> handler) {
             

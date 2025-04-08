@@ -120,7 +120,7 @@ TEST_F(CommandFlowTest, BasicCommandFlowTest) {
     auto cmd = CreateTestCommand("TestElement", "TestProperty", testValue);
 
     // Send the command through the client
-    client->CommandBus()->Send(cmd);
+    client->CommandBus()->Send("foo",cmd);
 
     // Wait for the command to be processed by the handler
     ASSERT_TRUE(commandHandler->WaitForCommand())
@@ -151,7 +151,7 @@ TEST_F(CommandFlowTest, MultipleSequentialCommandsTest) {
         auto cmd = CreateTestCommand("Element" + to_string(i), "Property", testValue);
 
         // Send the command
-        client->CommandBus()->Send(cmd);
+        client->CommandBus()->Send("foo",cmd);
 
         // Wait for processing
         ASSERT_TRUE(commandHandler->WaitForCommand())

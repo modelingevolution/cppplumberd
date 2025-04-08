@@ -18,8 +18,8 @@ namespace cppplumberd {
 		}
 
 		template<typename TCommand>
-		inline void Send(const TCommand& cmd) {
-			_handler->Send<TCommand>(cmd);
+		inline void Send(const string &recipient,const TCommand& cmd) {
+			_handler->Send<TCommand>(recipient, cmd);
 		}
 
 		template<typename TMessage, unsigned int MessageId>

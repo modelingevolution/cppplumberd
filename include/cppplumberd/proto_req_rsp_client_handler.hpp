@@ -165,17 +165,17 @@ namespace cppplumberd {
 				};
 		}
 		template<typename TReq>
-		void Send(const TReq& request)
+		void Send(const string &recipient, const TReq& request)
 		{
 			ProtoFrameBuffer<64 * 1024> outBuf(_serializer);
 			size_t received;
-			OnSend<TReq>(request, outBuf, received);
+			OnSend<TReq>(recipient,request, outBuf, received);
 			// Process the response
 			return ProcessResponse(outBuf, received);
 		}
 
 		template <typename TReq>
-		void OnSend(const TReq& request, ProtoFrameBuffer<64 * 1024>& outBuf, size_t& received)
+		void OnSend(const string& recipient, const TReq& request, ProtoFrameBuffer<64 * 1024>& outBuf, size_t& received)
 		{
 			// Ensure connected
 			if (!_connected) {
@@ -191,6 +191,7 @@ namespace cppplumberd {
 			CommandHeader header;
 			unsigned int reqId = _serializer->GetMessageId<TReq>();
 			header.set_command_type(reqId);
+			header.set_recipient(recipient);
 
 			// Use frame buffer to create the framed message
 			inBuf.Write<CommandHeader, TReq>(header, request);
@@ -202,10 +203,10 @@ namespace cppplumberd {
 
 		// Send request and receive response
 		template<typename TReq, typename TRsp>
-		TRsp Send(const TReq& request) {
+		TRsp Send(const string& recipient, const TReq& request) {
 			ProtoFrameBuffer<64 * 1024> outBuf(_serializer);
 			size_t received;
-			OnSend<TReq>(request, outBuf, received);
+			OnSend<TReq>(recipient,request, outBuf, received);
 			// Process the response
 			return ProcessResponse<TRsp>(outBuf, received);
 		}

@@ -205,7 +205,7 @@ TEST_F(ReqRspIntegrationTest, MultipleCommandExecutionTest) {
         SetterCommand cmd = CreateTestCommand("Element", "Property" + to_string(value), value);
 
         // Send command and capture response
-        clientHandler->Send<SetterCommand>(cmd);
+        clientHandler->Send<SetterCommand>("foo",cmd);
         
 
         // Wait for each command to be processed
@@ -238,7 +238,7 @@ TEST_F(ReqRspIntegrationTest, SendCommandIsProcessedByServer) {
     SetterCommand cmd = CreateTestCommand("TestElement", "TestProperty", testValue);
 
     // Send the command
-    clientHandler->Send<SetterCommand>(cmd);
+    clientHandler->Send<SetterCommand>("foo",cmd);
 
     // Wait for the command to be processed
     WaitForCommand();
@@ -273,7 +273,7 @@ TEST_F(ReqRspIntegrationTest, ErrorHandlingTest) {
 
     // Expect the Send call to throw FaultException with correct error code
     try {
-        CommandResponse response = clientHandler->Send<SetterCommand, CommandResponse>(cmd);
+        CommandResponse response = clientHandler->Send<SetterCommand, CommandResponse>("foo",cmd);
         FAIL() << "Expected FaultException to be thrown";
     }
     catch (const FaultException& e) {

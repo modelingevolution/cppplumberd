@@ -31,7 +31,7 @@ int main() {
 
 	app::CreateReactiveSubscriptionCommand cmd;
 	cmd.set_name("Foo");
-	plumber->CommandBus()->Send<app::CreateReactiveSubscriptionCommand>(cmd);
+	plumber->CommandBus()->Send<app::CreateReactiveSubscriptionCommand>("foo",cmd);
 
 	app::ReactivePropertyViewModel vm;
 	auto subscription = plumber->SubscriptionManager()->Subscribe("Foo", vm);
