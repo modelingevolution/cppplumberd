@@ -129,6 +129,25 @@ TEST_F(TransportTest, PubSubTest) {
 // Test request-reply pattern
 TEST_F(TransportTest, ReqRepTest) {
     auto server = factory->CreateReqRspSrvSocket(req_rsp);
+
+    // Set up the handler for the server to process requests
+    uint8_t inBuffer[1024];
+    uint8_t outBuffer[1024];
+
+    // Create an echo handler
+    auto handler = [&inBuffer, &outBuffer](const size_t requestSize) -> size_t {
+        // Echo back the request with "Echo: " prefix
+        std::string request(reinterpret_cast<const char*>(inBuffer), requestSize);
+        std::string response = "Echo: " + request;
+
+        // Copy the response to the output buffer
+        memcpy(outBuffer, response.data(), response.size());
+
+        return response.size();
+        };
+
+    // Initialize server with the handler
+    server->Initialize(handler, inBuffer, sizeof(inBuffer), outBuffer, sizeof(outBuffer));
     server->Start();
 
     this_thread::sleep_for(chrono::milliseconds(200));
@@ -186,6 +205,7 @@ TEST_F(TransportTest, ReqRepTest) {
     totalSw.Stop();
     totalSw.PrintElapsed("Total execution time");
 }
+
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
