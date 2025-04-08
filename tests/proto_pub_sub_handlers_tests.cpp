@@ -34,8 +34,10 @@ public:
     MOCK_METHOD(void, Start, (const string& url), (override));
 
     // Method to simulate receiving a message
-    void SimulateReceive(uint8_t* data, size_t size) {
-        Received(data, size);
+    void SimulateReceive(const uint8_t* data, size_t size) {
+        // The Received signal expects non-const pointers, but we can cast away const
+        // since we're only reading the data
+        Received(const_cast<uint8_t*>(data), size);
     }
 };
 
@@ -113,15 +115,23 @@ TEST_F(PublishSubscribeIntegrationTest, PublishEventIsReceivedBySubscriber) {
     sentEvent.set_value_data(valueData);
 
     // 3. Set up the publish socket mock to capture the message
+    // Use a vector to store the captured data
     vector<uint8_t> capturedData;
     size_t capturedSize = 0;
 
-    EXPECT_CALL(*mockPubSocket, Send(_, _))
-        .WillOnce(DoAll(
-            SaveArg<0>(&capturedData),
-            SaveArg<1>(&capturedSize),
+    // Use a custom action to copy the data to our vector
+    // This fixes the issue with SaveArg not being able to directly assign to a vector
+    ON_CALL(*mockPubSocket, Send(_, _))
+        .WillByDefault(DoAll(
+            [&capturedData, &capturedSize](const uint8_t* data, size_t size) {
+                capturedData.assign(data, data + size);
+                capturedSize = size;
+            },
             Return()
         ));
+
+    EXPECT_CALL(*mockPubSocket, Send(_, _))
+        .Times(1);
 
     // 4. Start the handlers
     EXPECT_CALL(*mockPubSocket, Start()).Times(1);
@@ -201,18 +211,16 @@ TEST_F(PublishSubscribeIntegrationTest, HandlesMultipleEvents) {
 
     // Set up to capture all messages
     vector<vector<uint8_t>> capturedMessages;
-    vector<size_t> capturedSizes;
+
+    // Use a custom action to copy each message
+    ON_CALL(*mockPubSocket, Send(_, _))
+        .WillByDefault([&capturedMessages](const uint8_t* data, size_t size) {
+        vector<uint8_t> message(data, data + size);
+        capturedMessages.push_back(message);
+            });
 
     EXPECT_CALL(*mockPubSocket, Send(_, _))
-        .Times(sentEvents.size())
-        .WillRepeatedly(DoAll(
-            WithArgs<0, 1>([&capturedMessages, &capturedSizes](const uint8_t* data, size_t size) {
-                vector<uint8_t> message(data, data + size);
-                capturedMessages.push_back(message);
-                capturedSizes.push_back(size);
-                }),
-            Return()
-        ));
+        .Times(sentEvents.size());
 
     // Start handlers
     EXPECT_CALL(*mockPubSocket, Start()).Times(1);
@@ -231,8 +239,8 @@ TEST_F(PublishSubscribeIntegrationTest, HandlesMultipleEvents) {
     ASSERT_EQ(capturedMessages.size(), sentEvents.size());
 
     // Feed all captured messages to the subscriber
-    for (size_t i = 0; i < capturedMessages.size(); i++) {
-        mockSubSocket->SimulateReceive(capturedMessages[i].data(), capturedSizes[i]);
+    for (const auto& message : capturedMessages) {
+        mockSubSocket->SimulateReceive(message.data(), message.size());
     }
 
     // Wait for all events to be processed
