@@ -1,5 +1,8 @@
 add_executable(client client.cpp)
-target_link_libraries(client PRIVATE ${PROJECT_NAME})
+target_link_libraries(client PRIVATE 
+  ${PROJECT_NAME}
+  cppplumberd-messages
+)
 
 # Set output directory
 set_target_properties(client PROPERTIES
@@ -7,7 +10,10 @@ set_target_properties(client PROPERTIES
 )
 
 add_executable(server server.cpp)
-target_link_libraries(server PRIVATE ${PROJECT_NAME})
+target_link_libraries(server PRIVATE 
+  ${PROJECT_NAME}
+  cppplumberd-messages
+)
 
 set_target_properties(server PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
