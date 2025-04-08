@@ -24,7 +24,7 @@
 #include "cppplumberd/proto_subscribe_handler.hpp"
 #include "cppplumberd/proto_req_rsp_srv_handler.hpp"
 #include "cppplumberd/proto_req_rsp_client_handler.hpp"
-
+#include "cppplumberd/command_bus.hpp"
 #include <memory>
 #include <string>
 #include <thread>
@@ -147,18 +147,7 @@ namespace cppplumberd {
 		void Publish(const string& streamName, const TEvent& evt) {}
 	};
 
-	class CommandBus {
-	public:
-		CommandBus(shared_ptr<CommandServiceHandler> handler) : _handler(make_unique<ProtoReqRspClientHandler>(nullptr)) {}
-
-		template<typename TCommand>
-		void Send(const TCommand& cmd) {}
-
-		template<typename TMessage, unsigned int MessageId>
-		void RegisterMessage() {} // error or command.
-	private:
-		unique_ptr<ProtoReqRspClientHandler> _handler;
-	};
+	
 
 	
 
