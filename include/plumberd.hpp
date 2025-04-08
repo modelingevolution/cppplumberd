@@ -57,17 +57,52 @@ namespace cppplumberd {
 
 
 	class EventHandlerBase : public IEventDispatcher {
+    private:
+        // Map from message type ID to a type-erased handler function
+        std::unordered_map<unsigned int, std::function<void(const Metadata&, MessagePtr)>> _handlers;
+
+        // Stores the relationship between message type and message ID
+        std::unordered_map<std::type_index, unsigned int> _messageTypeToId;
+
 	public:
 		// we expect here that "this" implements IEventHandler<TEvent>
-		template<typename TEvent, unsigned int EventType>
-		inline void Map()
-		{
-			
-		}
+        template<typename TEvent, unsigned int EventType>
+        void Map() {
+            // Store the message type to ID mapping
+            _messageTypeToId[std::type_index(typeid(TEvent))] = EventType;
+
+
+            // Create type-erased handler that forwards to the derived class's handler
+            // This assumes the derived class implements IEventHandler<TEvent>
+            _handlers[EventType] = [this](const Metadata& metadata, MessagePtr msg) {
+                // Convert the message pointer to the specific event type
+                const TEvent* typedEvent = dynamic_cast<const TEvent*>(msg);
+                if (!typedEvent) {
+                    throw std::runtime_error("Event type mismatch in handler");
+                }
+
+                // Forward to the derived handler
+                // We use dynamic_cast to find the appropriate IEventHandler<TEvent> interface
+                IEventHandler<TEvent>* handler = dynamic_cast<IEventHandler<TEvent>*>(this);
+                if (!handler) {
+                    throw std::runtime_error("Derived class doesn't implement IEventHandler<TEvent>");
+                }
+
+                // Call the derived handler method
+                handler->Handle(metadata, *typedEvent);
+                };
+        }
 
         inline void Handle(const Metadata& metadata, unsigned int messageId, MessagePtr msg) override
 		{
-			
+            auto handlerIt = _handlers.find(messageId);
+            if (handlerIt == _handlers.end()) {
+                // No handler registered for this message type
+                return;
+            }
+
+            // Call the handler
+            handlerIt->second(metadata, msg);
 		}
 	};
 
