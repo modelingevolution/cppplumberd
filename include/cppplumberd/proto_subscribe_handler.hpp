@@ -42,7 +42,7 @@ namespace cppplumberd {
         template<typename TEvent, unsigned int EventId>
             requires HasParseFromString<TEvent>
         void RegisterHandler(std::function<void(const time_point<system_clock>&, const TEvent&)> handler) {
-            
+			_serializer->RegisterMessage<TEvent, EventId>();
             // Register the handler
             _eventHandlers[EventId] = [handler](const time_point<system_clock>& timestamp, const MessagePtr msg) {
                 const TEvent* typedEvent = dynamic_cast<const TEvent*>(msg);

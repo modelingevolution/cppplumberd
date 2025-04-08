@@ -137,15 +137,15 @@ namespace cppplumberd {
 			if (_written < totalExpectedSize) {
 				throw std::runtime_error("Buffer too small for header and payload");
 			}
-            const char* headerBytes = reinterpret_cast<const char*>(offset + 8);
-
+            //const char* headerBytes = reinterpret_cast<const char*>(_buffer+offset + 8);
+            auto headerBytes = _buffer + offset + 8;
             unique_ptr<THeader> typedHeader = make_unique<THeader>();
             if (!typedHeader->ParseFromArray(headerBytes, headerSize)) {
                 throw std::runtime_error("Failed to parse header");
             }
 
             unsigned int payloadType = payloadMessageIdSelector(*typedHeader);
-            const char* payloadBytes = headerBytes + headerSize;
+            auto payloadBytes = headerBytes + headerSize;
 
             msgPtr = _serializer->Deserialize(payloadBytes, payloadSize, payloadType);
             return typedHeader;
