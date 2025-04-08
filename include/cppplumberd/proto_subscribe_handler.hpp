@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <chrono>
 
+#include "cqrs_abstractions.hpp"
 #include "proto_frame_buffer.hpp"
 #include "cppplumberd/transport_interfaces.hpp"
 #include "cppplumberd/message_serializer.hpp"
@@ -19,7 +20,71 @@ namespace cppplumberd {
 
     // Forward declaration
     class Metadata;
+    class ClientProtoSubscriptionStream
+    {
+    public:
+        explicit ClientProtoSubscriptionStream(std::unique_ptr<ITransportSubscribeSocket> socket, 
+            const shared_ptr<IEventDispatcher> &dispatcher, const string &streamName)
+			: _socket(std::move(socket)), _running(false), _dispatcher(dispatcher), _streamName(streamName) {
+    	
+            if (!_socket) {
+                throw std::invalid_argument("Socket cannot be null");
+            }
 
+            // Connect to the socket's Received signal
+            _socket->Received.connect([this](uint8_t* buffer, size_t size) {
+                this->OnMessageReceived(buffer, size);
+                });
+        }
+
+        ~ClientProtoSubscriptionStream() {
+            Stop();
+        }
+
+
+
+        void Start() {
+            _running = true;
+            _socket->Start();
+        }
+
+        void Stop() {
+            _running = false;
+        }
+
+    private:
+		shared_ptr<IEventDispatcher> _dispatcher;
+		string _streamName;
+        std::unique_ptr<ITransportSubscribeSocket> _socket;
+        shared_ptr<MessageSerializer> _serializer = std::make_shared<MessageSerializer>();
+        
+        bool _running;
+        
+
+        void OnMessageReceived(uint8_t* buffer, size_t size) {
+            if (!_running) return;
+
+            try {
+                ProtoFrameBufferView v(_serializer, buffer, size);
+                v.AckWritten(size);
+                auto responseTypeSelector = [](const EventHeader& header) -> unsigned int { return header.event_type(); };
+                MessagePtr payloadBytes;
+                auto header = v.Read<EventHeader>(responseTypeSelector, payloadBytes);
+
+                time_point<system_clock> timestamp = system_clock::time_point(
+                    milliseconds(header->timestamp()));
+
+                Metadata m(_streamName, timestamp);
+				_dispatcher->Handle(m, header->event_type(), payloadBytes);
+                
+                delete payloadBytes;
+            }
+            catch (const std::exception& ex) {
+                // Log error but continue processing other messages
+                std::cerr << "Error processing message: " << ex.what() << std::endl;
+            }
+        }
+    };
     class ProtoSubscribeHandler {
     public:
         explicit ProtoSubscribeHandler(std::unique_ptr<ITransportSubscribeSocket> socket)
@@ -38,6 +103,7 @@ namespace cppplumberd {
         ~ProtoSubscribeHandler() {
             Stop();
         }
+		
 
         template<typename TEvent, unsigned int EventId>
             requires HasParseFromString<TEvent>

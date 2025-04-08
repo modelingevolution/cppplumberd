@@ -79,12 +79,10 @@ protected:
         client = PlumberClient::CreateClient(socketFactory, "x");
 
         server->AddCommandHandler<TestCommandPublishingHandler, SetterCommand, COMMANDS::SETTER>(server->EventStore());
-
-        // Register Event on client
-        client->SubscriptionManager()->Subscribe("foo", *_testModel);
-
-        // Start server and client
         server->Start();
+
+        client->SubscriptionManager()->Subscribe("foo", _testModel);
+        
 
         // Give the server time to start
         this_thread::sleep_for(chrono::milliseconds(100));

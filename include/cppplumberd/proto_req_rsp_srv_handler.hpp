@@ -63,13 +63,17 @@ namespace cppplumberd {
             return false;
         }
     public:
-        inline ProtoReqRspSrvHandler(unique_ptr<ITransportReqRspSrvSocket> socket)
-            : _socket(move(socket)), _serializer(make_shared<MessageSerializer>()) {
+        inline ProtoReqRspSrvHandler(unique_ptr<ITransportReqRspSrvSocket> socket, shared_ptr< MessageSerializer> serializer)
+            : _socket(move(socket)), _serializer(serializer) {
             if (!_socket) {
                 throw invalid_argument("Socket cannot be null");
             }
         }
 
+        inline ProtoReqRspSrvHandler(unique_ptr<ITransportReqRspSrvSocket> socket)
+            : ProtoReqRspSrvHandler(move(socket),make_shared<MessageSerializer>()){
+        }
+        
         // Old string-based Initialize method (throws not supported exception)
         inline void Initialize(function<string(const string&)> handler) {
             throw runtime_error("String-based handlers are no longer supported. Use buffer-based initialization.");

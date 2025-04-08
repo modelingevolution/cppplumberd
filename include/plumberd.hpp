@@ -26,6 +26,7 @@
 #include "cppplumberd/proto_req_rsp_client_handler.hpp"
 #include "cppplumberd/command_bus.hpp"
 #include "cppplumberd/command_service_handler.hpp"
+#include "cppplumberd/event_store.hpp"
 #include <memory>
 #include <string>
 #include <thread>
@@ -54,15 +55,6 @@ namespace cppplumberd {
 
 
 
-	
-
-	class IEventDispatcher
-	{
-	public:
-		virtual void Handle(const Metadata&, unsigned int messageId, MessagePtr msg) = 0;
-		virtual ~IEventDispatcher() = default;
-	};
-
 	class EventHandlerBase : public IEventDispatcher {
 	public:
 		// we expect here that "this" implements IEventHandler<TEvent>
@@ -80,66 +72,56 @@ namespace cppplumberd {
 	};
 
 
-	/* Can be used on Client side or Server side */
-	class ISubscriptionManager
-	{
-	public:
-		class ISubscription
-		{
-		public:
-			virtual void Unsubscribe() = 0;
-			virtual ~ISubscription() = default;
-		};
-
-		template<typename TEvent>
-		class IEventPublisher
-		{
-		public:
-			virtual void Publish(const Metadata& m, const TEvent& evt) = 0;
-			virtual ~IEventPublisher() = default;
-		};
-
-		virtual unique_ptr<ISubscription> Subscribe(const string& streamName, const IEventDispatcher& handler) = 0;
-
-		// For client this would be low level adapters for sub-handler-> socket-subscribers.
-		// For server this would be used by IEventStore to push events to low-level publish-handler->publish-socket
-		template<typename TEvent>
-		vector<shared_ptr<IEventPublisher<TEvent>>> GetPublishers() { return {}; }
-
-		virtual ~ISubscriptionManager() = default;
-	};
-
-	// Server-side
-	class EventStore
-	{
-	public:
-		template<typename TMessage, unsigned int MessageId>
-		void RegisterMessage() {} // event
-
-		template<typename TEvent> // pushes events to local ISubscriptionManager 
-		void Publish(const string& streamName, const TEvent& evt) {}
-	};
-
-	
-
-	
-
-	class HandlerFactory {
-	public:
-		HandlerFactory(shared_ptr<ISocketFactory> socketFactory) : _socketFactory(socketFactory) {}
-
-		unique_ptr<ProtoPublishHandler> CreatePublishHandler(const string& endpoint) { return nullptr; }
-		unique_ptr<ProtoSubscribeHandler> CreateSubscribeHandler(const string& endpoint) { return nullptr; }
-		unique_ptr<ProtoReqRspClientHandler> CreateReqRspClientHandler(const string& endpoint) { return nullptr; }
-		unique_ptr<ProtoReqRspSrvHandler> CreateReqRspSrvHandler(const string& endpoint) { return nullptr; }
-	private:
-		shared_ptr<ISocketFactory> _socketFactory;
-	};
-
 	
 
     class PlumberClient {
-    protected:
+    private:
+        class SubscriptionManager : public ISubscriptionManager {
+	        
+            class Subscription : public ISubscription
+            {
+            private:
+                string _streamName;
+                shared_ptr<ClientProtoSubscriptionStream> _stream;
+                SubscriptionManager* _parent;
+            public:
+                Subscription(SubscriptionManager* parent, const string& streamName, const shared_ptr<ClientProtoSubscriptionStream>& stream)
+                    : _streamName(streamName), _stream(stream), _parent(parent) {
+                }
+                void Unsubscribe() override {
+					_stream->Stop();
+                    _parent->Unsubscribe(this);
+                }
+            };
+            void Unsubscribe(Subscription* subscription)
+            {
+                auto it = ranges::find(_subscriptions, subscription);
+                if (it != _subscriptions.end()) {
+                    _subscriptions.erase(it);
+                }
+            }
+        public:
+            unique_ptr<ISubscription> Subscribe(const string& streamName, const shared_ptr<IEventDispatcher>& handler)
+            {
+                CreateStream cmd;
+                cmd.set_name(streamName);
+                _parent->_commandBus->Send("$", cmd);
+                auto sock = _parent->_socketFactory->CreateSubscribeSocket(streamName);
+                
+				auto stream = make_shared<ClientProtoSubscriptionStream>(std::move(sock),handler,streamName);
+				auto sub = make_unique<Subscription>(this, streamName, stream);
+                stream->Start();
+				_subscriptions.push_back(sub.get());
+                return sub;
+            }
+            
+        private:
+			vector< Subscription*> _subscriptions;
+            PlumberClient* _parent;
+            SubscriptionManager(PlumberClient* ptr) : _parent(ptr) {  }
+        };
+   
+        
         shared_ptr<ISocketFactory> _socketFactory;
         string _endpoint;
         shared_ptr<CommandBus> _commandBus;
@@ -185,35 +167,38 @@ namespace cppplumberd {
     };
 
     // Server-side implementation
-    class Plumber : public PlumberClient {
+    class Plumber  {
     private:
         shared_ptr<CommandServiceHandler> _commandServiceHandler;
 		shared_ptr<EventStore> _eventStore;
-
+        shared_ptr<ISocketFactory> _socketFactory;
+		shared_ptr<MessageSerializer> _serializer;
+        string _endpoint;
+        bool _isStarted;
     public:
         static unique_ptr<Plumber> CreateServer(shared_ptr<ISocketFactory> factory, const string& endpoint) {
             return make_unique<Plumber>(factory, endpoint);
         }
 
-        Plumber(shared_ptr<ISocketFactory> factory, const string& endpoint = "")
-            : PlumberClient(factory, endpoint) {
-
-            // Create the command service handler
-            auto srvHandler = make_unique<ProtoReqRspSrvHandler>(
-                _socketFactory->CreateReqRspSrvSocket("commands"));
+        Plumber(shared_ptr<ISocketFactory> factory, const string& cmdEndpoint = "commands")
+    	{
+			_serializer = make_shared<MessageSerializer>();
+            
+            auto srvHandler = make_unique<ProtoReqRspSrvHandler>(_socketFactory->CreateReqRspSrvSocket(cmdEndpoint), _serializer);
             _commandServiceHandler = make_shared<CommandServiceHandler>(move(srvHandler));
+
+			_eventStore = make_shared<cppplumberd::EventStore>(factory, _serializer);
         }
 
-        // Override to provide server-specific start behavior
-        void Start() override {
+        void Start() {
             if (_isStarted) return;
 
             _commandServiceHandler->Start();
             _isStarted = true;
         }
 
-        // Override to provide server-specific stop behavior
-        void Stop() override {
+        
+        void Stop() {
             if (!_isStarted) return;
 
             _commandServiceHandler->Stop();
@@ -223,10 +208,7 @@ namespace cppplumberd {
         {
 			return _eventStore;
         }
-        // Override CommandBus to throw an exception since in-proc communication is not yet implemented
-        shared_ptr<cppplumberd::CommandBus> CommandBus() override {
-            throw runtime_error("In-process CommandBus not implemented for server-side. Use CommandServiceHandler directly.");
-        }
+       
 
         shared_ptr<CommandServiceHandler> GetCommandServiceHandler() {
             return _commandServiceHandler;

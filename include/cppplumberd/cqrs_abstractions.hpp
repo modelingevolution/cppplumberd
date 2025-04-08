@@ -11,6 +11,21 @@ namespace cppplumberd {
 
     class Metadata
     {
+	private:
+		std::string _stream_id;
+		time_point<system_clock> _created;
+
+    public:
+		Metadata() = default;
+		Metadata(const std::string& stream_id)
+			: _stream_id(stream_id){
+		}
+
+		Metadata(const string& string, time_point<system_clock> created) : _stream_id(string), _created(created) {
+		}
+		
+		const std::string& StreamId() const { return _stream_id; }
+		time_point<system_clock> Created() const {return _created;		}
     };
 
     template<typename TCommand>
@@ -25,4 +40,27 @@ namespace cppplumberd {
         virtual void Handle(const Metadata& metadata, const TEvent& evt) = 0;
         virtual ~IEventHandler() = default;
     };
+
+	class IEventDispatcher
+	{
+	public:
+		virtual void Handle(const Metadata&, unsigned int messageId, MessagePtr msg) = 0;
+		virtual ~IEventDispatcher() = default;
+	};
+	class ISubscriptionManager
+	{
+	public:
+		class ISubscription
+		{
+		public:
+			virtual void Unsubscribe() = 0;
+			virtual ~ISubscription() = default;
+		};
+
+
+		virtual unique_ptr<ISubscription> Subscribe(const string& streamName, const shared_ptr<IEventDispatcher>& handler) = 0;
+
+		virtual ~ISubscriptionManager() = default;
+	};
+	
 }

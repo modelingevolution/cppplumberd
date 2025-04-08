@@ -22,8 +22,14 @@ namespace cppplumberd {
             if (!_socket) {
                 throw std::invalid_argument("Socket cannot be null");
             }
+            _serializer = make_shared<MessageSerializer>();
         }
-
+        explicit ProtoPublishHandler(std::unique_ptr<ITransportPublishSocket> socket, const std::shared_ptr<MessageSerializer>& serializer)
+            : _socket(std::move(socket)), _serializer(serializer) {
+            if (!_socket) {
+                throw std::invalid_argument("Socket cannot be null");
+            }
+        }
         inline void Start() {
             _socket->Start();
         }
@@ -46,7 +52,7 @@ namespace cppplumberd {
 
     private:
         std::unique_ptr<ITransportPublishSocket> _socket;
-		std::shared_ptr<MessageSerializer> _serializer = std::make_shared<MessageSerializer>();
+		std::shared_ptr<MessageSerializer> _serializer;
         
     };
 

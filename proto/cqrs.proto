@@ -15,6 +15,9 @@ message CommandResponse {
   uint32 response_type = 3; // 0 means void, if > 0, than it the MessageId.
 }
 
+message CreateStream{
+string name = 1;
+}
 message EventHeader {
 	uint64 timestamp = 1;
 	uint32 event_type = 2;
