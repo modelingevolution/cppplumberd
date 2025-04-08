@@ -7,6 +7,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <unordered_map>
 #include <chrono>
 #include <boost/signals2.hpp>
 using namespace std;
@@ -18,34 +19,72 @@ namespace cppplumberd {
 	{
 		class SubscriptionManager : ISubscriptionManager
 		{
-			unordered_map<string, shared_ptr<ProtoPublishHandler>> _publishedStreams;
-			unordered_map<string, shared_ptr<IEventDispatcher>> _localSubscribers;
+			
+			class Subscription : public ISubscription
+			{
+				SubscriptionManager* _parent;
+				string _streamName;
+				shared_ptr<IEventDispatcher> handler;
+
+			public:
+				IEventDispatcher& Dispatcher() const { return *handler; }
+				string StreamName() const { return _streamName; }
+				Subscription(SubscriptionManager* eventStore, const string& streamName, const shared_ptr<IEventDispatcher>& handler)
+					: _parent(eventStore), _streamName(streamName), handler(handler) {
+				}
+				void Unsubscribe() override
+				{
+					_parent->Unsubscribe(this);
+				}
+			};
+			unordered_multimap<string, shared_ptr<ProtoPublishHandler>> _publishedStreams;
+			unordered_multimap<string, Subscription*> _localSubscribers;
 			EventStore* _eventStore;
+			void Unsubscribe(const Subscription* subscription)
+			{
+				auto range = _localSubscribers.equal_range(subscription->StreamName());
+				for (auto it = range.first; it != range.second; ++it) {
+					if (it->second == subscription) {
+						_localSubscribers.erase(it);
+						break;
+					}
+				}
+			}
 		public:
+			
 			SubscriptionManager(EventStore* parent) : _eventStore(parent) {}
 			unique_ptr<ISubscription> Subscribe(const string& streamName, const shared_ptr<IEventDispatcher>& handler)
 			{
-				_localSubscribers[streamName] = handler;
+				auto subscription = new Subscription(this, streamName, handler);
+				_localSubscribers.insert({ streamName, subscription });
+				return unique_ptr<ISubscription>(subscription);
 			}
 
 			void AddStream(const string& streamName, const shared_ptr<ProtoPublishHandler>& channel)
 			{
-				_publishedStreams[streamName] = channel;
+				_publishedStreams.insert({ streamName, channel });
 			}
 			template<typename TEvent> // pushes events to local ISubscriptionManager 
 			void Publish(const string& streamName, const TEvent& evt)
 			{
-				auto lit = _localSubscribers.find(streamName);
-				if (lit != _localSubscribers.end())
+				auto range = _localSubscribers.equal_range(streamName);
+				for (auto &it = range.first; it != range.second; ++it) 
 				{
+					Metadata metadata(streamName, system_clock::now());
+					unsigned int messageId = _eventStore->_serializer->GetMessageId<TEvent>();
+
+					// Just pass the pointer to the const event
+					// Using const_cast because the interface expects a non-const pointer
+					// but we're not actually modifying the event
+					MessagePtr ptr = const_cast<TEvent*>(&evt);
 					
-					MessagePtr ptr = const_cast<MessagePtr>(&evt);
-					lit->second->Handle(Metadata(streamName), _eventStore->_serializer->GetMessageId<TEvent>(), ptr);
+					it->second->Dispatcher().Handle(metadata, messageId, ptr);
+					
 				}
 
-
-				auto it = _publishedStreams.find(streamName);
-				if (it != _publishedStreams.end())
+				auto range2 = _publishedStreams.equal_range(streamName);
+				
+				for (auto& it = range2.first; it != range2.second; ++it)
 					it->second->Publish(evt);
 
 

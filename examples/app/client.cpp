@@ -33,7 +33,7 @@ int main() {
 	cmd.set_name("Foo");
 	plumber->CommandBus()->Send<app::CreateReactiveSubscriptionCommand>("foo",cmd);
 
-	app::ReactivePropertyViewModel vm;
+	auto vm = make_shared< app::ReactivePropertyViewModel>();
 	auto subscription = plumber->SubscriptionManager()->Subscribe("Foo", vm);
 
 	// Keep the program running
