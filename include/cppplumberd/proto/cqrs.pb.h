@@ -642,8 +642,25 @@ class CommandHeader final : public ::google::protobuf::Message
 
   // accessors -------------------------------------------------------
   enum : int {
+    kRecipientFieldNumber = 2,
     kCommandTypeFieldNumber = 1,
   };
+  // string recipient = 2;
+  void clear_recipient() ;
+  const std::string& recipient() const;
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_recipient(Arg_&& arg, Args_... args);
+  std::string* mutable_recipient();
+  PROTOBUF_NODISCARD std::string* release_recipient();
+  void set_allocated_recipient(std::string* value);
+
+  private:
+  const std::string& _internal_recipient() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_recipient(
+      const std::string& value);
+  std::string* _internal_mutable_recipient();
+
+  public:
   // uint32 command_type = 1;
   void clear_command_type() ;
   ::uint32_t command_type() const;
@@ -659,8 +676,8 @@ class CommandHeader final : public ::google::protobuf::Message
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
   static const ::google::protobuf::internal::TcParseTable<
-      0, 1, 0,
-      0, 2>
+      1, 2, 0,
+      43, 2>
       _table_;
 
   friend class ::google::protobuf::MessageLite;
@@ -677,6 +694,7 @@ class CommandHeader final : public ::google::protobuf::Message
     inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
                           ::google::protobuf::Arena* arena, const Impl_& from,
                           const CommandHeader& from_msg);
+    ::google::protobuf::internal::ArenaStringPtr recipient_;
     ::uint32_t command_type_;
     ::google::protobuf::internal::CachedSize _cached_size_;
     PROTOBUF_TSAN_DECLARE_MEMBER
@@ -721,6 +739,54 @@ inline ::uint32_t CommandHeader::_internal_command_type() const {
 inline void CommandHeader::_internal_set_command_type(::uint32_t value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.command_type_ = value;
+}
+
+// string recipient = 2;
+inline void CommandHeader::clear_recipient() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.recipient_.ClearToEmpty();
+}
+inline const std::string& CommandHeader::recipient() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:cppplumberd.CommandHeader.recipient)
+  return _internal_recipient();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void CommandHeader::set_recipient(Arg_&& arg,
+                                                     Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.recipient_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:cppplumberd.CommandHeader.recipient)
+}
+inline std::string* CommandHeader::mutable_recipient() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  std::string* _s = _internal_mutable_recipient();
+  // @@protoc_insertion_point(field_mutable:cppplumberd.CommandHeader.recipient)
+  return _s;
+}
+inline const std::string& CommandHeader::_internal_recipient() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.recipient_.Get();
+}
+inline void CommandHeader::_internal_set_recipient(const std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.recipient_.Set(value, GetArena());
+}
+inline std::string* CommandHeader::_internal_mutable_recipient() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.recipient_.Mutable( GetArena());
+}
+inline std::string* CommandHeader::release_recipient() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:cppplumberd.CommandHeader.recipient)
+  return _impl_.recipient_.Release();
+}
+inline void CommandHeader::set_allocated_recipient(std::string* value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.recipient_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.recipient_.IsDefault()) {
+    _impl_.recipient_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:cppplumberd.CommandHeader.recipient)
 }
 
 // -------------------------------------------------------------------

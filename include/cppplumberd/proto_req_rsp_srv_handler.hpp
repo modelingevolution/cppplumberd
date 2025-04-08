@@ -50,7 +50,18 @@ namespace cppplumberd {
         }
         unique_ptr<ProtoFrameBuffer<64 * 1024>> _inBuffer;
         unique_ptr<ProtoFrameBuffer<64 * 1024>> _outBuffer;
+        inline bool OnStart()
+        {
+            if (_running) return true;
 
+            auto replyFunc = [this](const size_t requestSize) -> size_t {
+                return this->HandleRequest(requestSize);
+                };
+            _inBuffer = make_unique<ProtoFrameBuffer<64 * 1024>>(_serializer);
+            _outBuffer = make_unique<ProtoFrameBuffer<64 * 1024>>(_serializer);
+            _socket->Initialize(replyFunc, _inBuffer->Get(), _inBuffer->FreeBytes(), _outBuffer->Get(), _outBuffer->FreeBytes());
+            return false;
+        }
     public:
         inline ProtoReqRspSrvHandler(unique_ptr<ITransportReqRspSrvSocket> socket)
             : _socket(move(socket)), _serializer(make_shared<MessageSerializer>()) {
@@ -82,6 +93,20 @@ namespace cppplumberd {
             );
         }
         template<typename TReq, unsigned int ReqId>
+        inline void RegisterHandlerWithMetadata(function<void(const CommandHeader &header, const TReq&)> handler) {
+            // Register message types with serializer
+            _serializer->RegisterMessage<TReq, ReqId>();
+            _dispatcher.RegisterHandler<TReq, ReqId>(
+                [this, handler](const CommandHeader& header, const TReq& request) -> size_t {
+                    // Call the handler - let exceptions propagate up
+                    handler(header,request);
+                    CommandResponse rsp;
+                    rsp.set_status_code(200);
+                    return _outBuffer->Write(rsp);
+                }
+            );
+        }
+        template<typename TReq, unsigned int ReqId>
         inline void RegisterHandler(function<void(const TReq&)> handler) {
             // Register message types with serializer
             _serializer->RegisterMessage<TReq, ReqId>();
@@ -101,21 +126,16 @@ namespace cppplumberd {
             _serializer->RegisterMessage<TError, MessageId>();
         }
 
-        
 
+       
         inline void Start(const string& url) {
-            if (_running) return;
-
-           
-            // Initialize the socket with our buffer-based handler
-            auto replyFunc = [this](const size_t requestSize) -> size_t {
-                
-                return this->HandleRequest(requestSize);
-                };
-            _inBuffer = make_unique<ProtoFrameBuffer<64 * 1024>>(_serializer);
-            _outBuffer = make_unique<ProtoFrameBuffer<64 * 1024>>(_serializer);
-            _socket->Initialize(replyFunc, _inBuffer->Get(), _inBuffer->FreeBytes(), _outBuffer->Get(), _outBuffer->FreeBytes());
+            if (OnStart()) return;
             _socket->Start(url);
+            _running = true;
+        }
+        inline void Start() {
+            if (OnStart()) return;
+            _socket->Start();
             _running = true;
         }
 

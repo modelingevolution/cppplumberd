@@ -6,6 +6,7 @@ package cppplumberd;
 
 message CommandHeader {
 	uint32 command_type = 1;
+	string recipient = 2;
 }
 // Response to commands
 message CommandResponse {
