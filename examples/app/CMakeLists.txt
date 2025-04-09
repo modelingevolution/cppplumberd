@@ -27,7 +27,7 @@ target_link_libraries(server PRIVATE nng::nng)
 # Protocol Buffers integration
 find_package(Protobuf REQUIRED)
 set(PROTO_FILES
-    proto/messages.proto
+    proto/gst.proto
 )
 
 # Make sure output directories exist for protobuf-generated files

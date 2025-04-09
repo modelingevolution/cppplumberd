@@ -190,7 +190,7 @@ namespace cppplumberd {
         bool _isStarted = false;
 
     public:
-        static unique_ptr<PlumberClient> CreateClient(shared_ptr<ISocketFactory> factory, const string& endpoint) {
+        static unique_ptr<PlumberClient> CreateClient(shared_ptr<ISocketFactory> factory, const string& endpoint = "commands") {
             return make_unique<PlumberClient>(factory, endpoint);
         }
 
@@ -244,7 +244,7 @@ namespace cppplumberd {
         string _endpoint;
         bool _isStarted;
     public:
-        static unique_ptr<Plumber> CreateServer(shared_ptr<ISocketFactory> factory, const string& endpoint) {
+        static unique_ptr<Plumber> CreateServer(shared_ptr<ISocketFactory> factory, const string& endpoint = "commands") {
             return make_unique<Plumber>(factory, endpoint);
         }
 

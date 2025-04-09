@@ -82,15 +82,15 @@ protected:
         socketFactory = make_shared<NggSocketFactory>("ipc:///tmp/Event_flow_test");
 		_testModel = make_shared<TestReadModel>();
         // Create server and client
-        server = Plumber::CreateServer(socketFactory, "x");
-        client = PlumberClient::CreateClient(socketFactory, "x");
+        server = Plumber::CreateServer(socketFactory);
+        client = PlumberClient::CreateClient(socketFactory);
 
         server->AddCommandHandler<TestCommandPublishingHandler, SetterCommand, app::testing::COMMANDS::SETTER>(server->EventStore());
         server->RegisterMessage<PropertyChangedEvent, app::testing::EVENTS::PROPERTY_CHANGED>();
         server->Start();
 
         this->_sub = client->SubscriptionManager()->Subscribe("foo", _testModel);
-        client->CommandBus()->RegisterMessage<SetterCommand, app::testing::COMMANDS::SETTER>();
+        client->RegisterMessage<SetterCommand, app::testing::COMMANDS::SETTER>();
         client->RegisterMessage<PropertyChangedEvent, app::testing::EVENTS::PROPERTY_CHANGED>();
         // Give the server time to start
         this_thread::sleep_for(chrono::milliseconds(100));
