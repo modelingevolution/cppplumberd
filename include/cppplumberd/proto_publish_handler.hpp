@@ -48,6 +48,8 @@ namespace cppplumberd {
 			frameBuffer.Write<EventHeader, TEvent>(header, evt);
 
             _socket->Send(frameBuffer.Get(), frameBuffer.Written());
+
+            
         }
 
     private:

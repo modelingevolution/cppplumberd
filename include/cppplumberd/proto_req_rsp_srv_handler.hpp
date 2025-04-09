@@ -35,7 +35,9 @@ namespace cppplumberd {
             unique_ptr<CommandHeader> header = this->_inBuffer->Read<CommandHeader>(responseTypeSelector, payload);
             CommandResponse rsp;
             try {
+				cout << "Handling command: " << _serializer->GetMessageName(header->command_type()) << endl;
                 size_t retSize = _dispatcher.Handle(*header, header->command_type(), payload);
+                cout << "         command: " << _serializer->GetMessageName(header->command_type()) << " executed." << endl;
                 return retSize;
             }
             catch (const FaultException &f)
@@ -46,6 +48,11 @@ namespace cppplumberd {
                 // we need to serialize exception and return;
                 _outBuffer->Write(rsp, f.Get());
                 return _outBuffer->Written();
+            }
+            catch (const std::exception& e)
+            {
+                cout << e.what() << endl;
+                throw;
             }
         }
         unique_ptr<ProtoFrameBuffer<64 * 1024>> _inBuffer;

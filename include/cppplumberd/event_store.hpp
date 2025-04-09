@@ -87,9 +87,21 @@ namespace cppplumberd {
 				auto range2 = _publishedStreams.equal_range(streamName);
 				
 				for (auto& it = range2.first; it != range2.second; ++it)
+				{
+					type_index typeIdx = type_index(typeid(TEvent));
+					
 					it->second->Publish(evt);
 
+					cout << "Event published '" << typeIdx.name() << "' in stream: " << streamName << endl;
+				}
 
+
+			}
+
+			inline bool StreamExists(const string& string)
+			{
+				auto range = _publishedStreams.equal_range(string);
+				return range.first != range.second;	
 			}
 		};
 		unique_ptr<SubscriptionManager> _subscriptionManager;
@@ -124,7 +136,18 @@ namespace cppplumberd {
 			_serializer = serializer;
 			
 		}
-		
+		virtual void EnsureStreamCreated(const string& streamName)
+		{
+			if (_subscriptionManager->StreamExists(streamName))
+			{
+				return;
+			}
+			auto h = make_shared<ProtoPublishHandler>(_socketFactory->CreatePublishSocket(streamName), _serializer);
+
+			_subscriptionManager->AddStream(streamName, h);
+
+			h->Start();
+		}
 		virtual void CreateStream(const string& streamName)
 		{
 			auto h = make_shared<ProtoPublishHandler>(_socketFactory->CreatePublishSocket(streamName), _serializer);

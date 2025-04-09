@@ -1,151 +1,379 @@
 #include "../../include/plumberd.hpp"
 #include "interfaces.hpp"
-#include "messages.pb.h"
+#include "gst.pb.h"
 #include "contract.h"
+#include <iostream>
+#include <mutex>
+#include <memory>
+#include <string>
+#include <map>
+#include <set>
 
 using namespace cppplumberd;
+using namespace std;
+
 namespace app {
 
+    using ValueType = gstcontrolbin::ValueType;
+    using SetterCommand = gstcontrolbin::SetterCommand;
+    using CreateReactiveSubscriptionCommand = gstcontrolbin::CreateReactiveSubscription;
+    using StartReactiveSubscriptionCommand = gstcontrolbin::StartReactiveSubscription;
+    using PropertySelector = gstcontrolbin::PropertySelector;
+    using PropertyChangedEvent = gstcontrolbin::PropertyChangedEvent;
 
-	class ElementRegistry : public IElementRegistry {
-	public:
-		std::shared_ptr<IElementInfo> GetElement(const std::string& element_name) override {
-			return nullptr;
-		}
+    // PropertyInfo implementation with actual data
+    class PropertyInfoImpl : public IPropertyInfo {
+    private:
+        string _name;
+        shared_ptr<int> _value;
+        IElementInfo* _parent;
+        bool _readable;
+        bool _writable;
 
-		std::vector<std::shared_ptr<IElementInfo>> GetAllElements() override {
-			return {};
-		}
-	};
+        // Signal for property changes
+        signal<void(IPropertyInfo&, int)> _valueChanged;
 
-	class ElementInfo : public IElementInfo {
-	public:
-		std::string GetName() const override {
-			return "";
-		}
+    public:
+        PropertyInfoImpl(const string& name, IElementInfo* parent, bool readable = true, bool writable = true)
+            : _name(name), _parent(parent), _readable(readable), _writable(writable) {
+            _value = make_shared<int>(0);
+        }
 
-		std::vector<std::shared_ptr<IPropertyInfo>> GetProperties() const override {
-			return {};
-		}
+        string GetName() const override {
+            return _name;
+        }
 
-		std::shared_ptr<IPropertyInfo> GetProperty(const std::string& name) const override {
-			return nullptr;
-		}
+        bool IsReadable() const override {
+            return _readable;
+        }
 
-		bool HasProperty(const std::string& name) const override {
-			return false;
-		}
-	};
+        bool IsWritable() const override {
+            return _writable;
+        }
 
-	class PropertyInfo : public IPropertyInfo {
-	public:
-		std::string GetName() const override {
-			return "";
-		}
+        shared_ptr<int> GetValue() const override {
+            return _value;
+        }
 
-		bool IsReadable() const override {
-			return true;
-		}
+        void SetValue(const int& value) override {
+            if (!IsWritable()) {
+                throw runtime_error("Property is not writable");
+            }
 
-		bool IsWritable() const override {
-			return true;
-		}
+            int oldValue = *_value;
+            *_value = value;
 
-		std::shared_ptr<int> GetValue() const override {
-			return nullptr;
-		}
+            if (oldValue != value) {
+                // Notify listeners of the change
+                _valueChanged(*this, value);
+            }
+        }
 
-		void SetValue(const int& value) override {
-		}
+        IElementInfo* GetElementInfo() const override {
+            return _parent;
+        }
 
-		IElementInfo* GetElementInfo() const override {
-			return nullptr;
-		}
-	};
+        // Connect to property change signal
+        connection ConnectValueChanged(const function<void(IPropertyInfo&, int)>& handler) {
+            return _valueChanged.connect(handler);
+        }
+    };
 
-	class SetterCommandHandler : public ICommandHandler<SetterCommand> {
-	public:
-		void Handle(const string& stream_id, const SetterCommand& cmd) override {
-			// Implementation
-		}
-	};
+    // ElementInfo implementation with actual data
+    class ElementInfoImpl : public IElementInfo {
+    private:
+        string _name;
+        map<string, shared_ptr<IPropertyInfo>> _properties;
 
-	class StartReactiveSubscriptionHandler : public ICommandHandler<StartReactiveSubscriptionCommand> {
-	public:
-		void Handle(const string& stream_id, const StartReactiveSubscriptionCommand& cmd) override {
-			// Implementation
-		}
-	private:
-		shared_ptr<EventStore> _eventStore;
-	};
+    public:
+        ElementInfoImpl(const string& name) : _name(name) {}
 
-	class ReactiveSubscriptionManager {
-	public:
-		set<string> GetReactiveSubscriptionStreams(const string& elementName, const string& propertyName) {
-			set<string> streams;
-			return streams;
-		}
+        string GetName() const override {
+            return _name;
+        }
 
-		void AddReactiveSubscription(const string& streamName, const string& elementName, const string& propertyName) {
-			// Add subscription logic here
-			auto prop = _elementRegistry->GetElement(elementName)->GetProperty(propertyName);
-			if (!IsSubscribed(*prop)) {
-				SubscribeOnPropertyChanged(*prop);
-			}
-			//TODO: Add the stream to the subscription map
-		}
+        vector<shared_ptr<IPropertyInfo>> GetProperties() const override {
+            vector<shared_ptr<IPropertyInfo>> result;
+            for (const auto& pair : _properties) {
+                result.push_back(pair.second);
+            }
+            return result;
+        }
 
-	private:
-		void PublishPropertyChanges(const IPropertyInfo& property, int value) const {
-			const string gsId = "gstreamer";
-			PropertyChangedEvent evt;
-			evt.set_element_name(property.GetElementInfo()->GetName());
-			evt.set_property_name(property.GetName());
+        shared_ptr<IPropertyInfo> GetProperty(const string& name) const override {
+            auto it = _properties.find(name);
+            if (it != _properties.end()) {
+                return it->second;
+            }
+            return nullptr;
+        }
 
-			_eventStore->Publish<PropertyChangedEvent>(gsId, evt);
-		}
+        bool HasProperty(const string& name) const override {
+            return _properties.find(name) != _properties.end();
+        }
 
-		void SubscribeOnPropertyChanged(const IPropertyInfo& property) {
-			// Implementation
-		}
+        // Create and add a property
+        shared_ptr<PropertyInfoImpl> AddProperty(const string& name, bool readable = true, bool writable = true) {
+            auto property = make_shared<PropertyInfoImpl>(name, this, readable, writable);
+            _properties[name] = property;
+            return property;
+        }
+    };
 
-		bool IsSubscribed(const IPropertyInfo& property) const {
-			return false;
-		}
+    // ElementRegistry implementation with actual elements
+    class ElementRegistryImpl : public IElementRegistry {
+    private:
+        map<string, shared_ptr<ElementInfoImpl>> _elements;
 
-		shared_ptr<EventStore> _eventStore;
-		shared_ptr<IElementRegistry> _elementRegistry;
-	};
+    public:
+        shared_ptr<IElementInfo> GetElement(const string& element_name) override {
+            auto it = _elements.find(element_name);
+            if (it != _elements.end()) {
+                return it->second;
+            }
+            return nullptr;
+        }
 
-	class CreateReactiveSubscriptionHandler : public ICommandHandler<CreateReactiveSubscriptionCommand> {
-	public:
-		void Handle(const string& stream_id, const CreateReactiveSubscriptionCommand& cmd) override {
-			// we create new stream.
-		}
-	};
+        vector<shared_ptr<IElementInfo>> GetAllElements() override {
+            vector<shared_ptr<IElementInfo>> result;
+            for (const auto& pair : _elements) {
+                result.push_back(pair.second);
+            }
+            return result;
+        }
 
-	class ReactiveSubscriptionEventHandler : public IEventHandler<PropertyChangedEvent> {
-	public:
-		void Handle(const Metadata& metadata, const PropertyChangedEvent& evt) override {
-			auto streams = _map->GetReactiveSubscriptionStreams(evt.element_name(), evt.property_name());
-			for (const auto& stream : streams) {
-				_eventStore->Publish<PropertyChangedEvent>(stream, evt);
-			}
-		}
+        // Create and add an element
+        shared_ptr<ElementInfoImpl> AddElement(const string& name) {
+            auto element = make_shared<ElementInfoImpl>(name);
+            _elements[name] = element;
+            return element;
+        }
+    };
 
-	private:
-		shared_ptr<ReactiveSubscriptionManager> _map;
-		shared_ptr<EventStore> _eventStore;
-	};
+    // Handler for setting properties
+    class SetterCommandHandler : public ICommandHandler<SetterCommand> {
+    private:
+        shared_ptr<IElementRegistry> _registry;
+
+    public:
+        SetterCommandHandler(shared_ptr<IElementRegistry> registry)
+            : _registry(registry) {
+        }
+
+        void Handle(const string& stream_id, const SetterCommand& cmd) override {
+            cout << "Setting property: " << cmd.element_name() << "." << cmd.property_name() << endl;
+
+            auto element = _registry->GetElement(cmd.element_name());
+            if (!element) {
+                throw runtime_error("Element not found: " + cmd.element_name());
+            }
+
+            auto property = element->GetProperty(cmd.property_name());
+            if (!property) {
+                throw runtime_error("Property not found: " + cmd.property_name());
+            }
+
+            if (cmd.value_type() == ValueType::INT) {
+                // Deserialize int value
+                int value = 0;
+                if (cmd.value_data().size() >= sizeof(int)) {
+                    memcpy(&value, cmd.value_data().data(), sizeof(int));
+                    cout << "Setting value to: " << value << endl;
+                    property->SetValue(value);
+                }
+                else {
+                    throw runtime_error("Invalid value data size");
+                }
+            }
+            else {
+                throw runtime_error("Unsupported value type");
+            }
+        }
+    };
+
+    // Property monitor that publishes property changes
+    class PropertyMonitorService {
+    private:
+        shared_ptr<EventStore> _eventStore;
+        map<string, map<string, connection>> _connections;  // element -> property -> connection
+
+    public:
+        PropertyMonitorService(shared_ptr<EventStore> eventStore)
+            : _eventStore(eventStore) {
+        }
+
+        void MonitorProperty(shared_ptr<PropertyInfoImpl> property) {
+            string elementName = property->GetElementInfo()->GetName();
+            string propertyName = property->GetName();
+
+            // Check if already monitoring
+            if (_connections.count(elementName) && _connections[elementName].count(propertyName)) {
+                return;
+            }
+
+            // Connect to property changes
+            connection conn = property->ConnectValueChanged(
+                [this, elementName, propertyName](IPropertyInfo& prop, int newValue) {
+                    this->OnPropertyChanged(elementName, propertyName, newValue);
+                });
+
+            // Store the connection
+            _connections[elementName][propertyName] = conn;
+
+            cout << "Now monitoring: " << elementName << "." << propertyName << endl;
+        }
+
+        void OnPropertyChanged(const string& elementName, const string& propertyName, int newValue) {
+            cout << "Property changed: " << elementName << "." << propertyName << " = " << newValue << endl;
+
+            // Create event
+            PropertyChangedEvent evt;
+            evt.set_element_name(elementName);
+            evt.set_property_name(propertyName);
+            evt.set_value_type(ValueType::INT);
+
+            // Serialize the value
+            string valueData;
+            valueData.resize(sizeof(int));
+            memcpy(&valueData[0], &newValue, sizeof(int));
+            evt.set_value_data(valueData);
+
+            // Publish to all reactive subscriptions
+            for (const auto& streamName : _reactiveSubscriptions) {
+                _eventStore->Publish(streamName, evt);
+            }
+        }
+
+        // Add a stream to send property changes to
+        void AddReactiveSubscription(const string& streamName) {
+            _reactiveSubscriptions.insert(streamName);
+        }
+
+    private:
+        set<string> _reactiveSubscriptions;
+    };
+
+    // Handler for creating reactive subscriptions
+    class CreateReactiveSubscriptionHandler : public ICommandHandler<CreateReactiveSubscriptionCommand> {
+    private:
+        shared_ptr<EventStore> _eventStore;
+        shared_ptr<PropertyMonitorService> _propertyMonitor;
+        shared_ptr<IElementRegistry> _registry;
+
+    public:
+        CreateReactiveSubscriptionHandler(
+            shared_ptr<EventStore> eventStore,
+            shared_ptr<PropertyMonitorService> propertyMonitor,
+            shared_ptr<IElementRegistry> registry)
+            : _eventStore(eventStore),
+            _propertyMonitor(propertyMonitor),
+            _registry(registry) {
+        }
+
+        void Handle(const string& stream_id, const CreateReactiveSubscriptionCommand& cmd) override {
+            cout << "Creating reactive subscription: " << cmd.name() << endl;
+
+            // Create event stream
+            _eventStore->CreateStream(cmd.name());
+
+            // Add to reactive subscriptions
+            _propertyMonitor->AddReactiveSubscription(cmd.name());
+
+            // Set up property monitoring for all requested properties
+            for (const auto& propSelector : cmd.properties()) {
+                auto element = _registry->GetElement(propSelector.element_name());
+                if (!element) {
+                    cerr << "Element not found: " << propSelector.element_name() << endl;
+                    continue;
+                }
+
+                auto property = element->GetProperty(propSelector.property_name());
+                if (!property) {
+                    cerr << "Property not found: " << propSelector.property_name() << endl;
+                    continue;
+                }
+
+                // Cast to our implementation type since we're using the derived class
+                auto elementImpl = dynamic_pointer_cast<ElementInfoImpl>(_registry->GetElement(propSelector.element_name()));
+                if (!elementImpl) {
+                    cerr << "Element is not of expected implementation type: " << propSelector.element_name() << endl;
+                    continue;
+                }
+
+                auto propertyImpl = dynamic_pointer_cast<PropertyInfoImpl>(property);
+                if (!propertyImpl) {
+                    cerr << "Property is not of expected implementation type: " << propSelector.property_name() << endl;
+                    continue;
+                }
+
+                _propertyMonitor->MonitorProperty(propertyImpl);
+            }
+        }
+    };
+
+    // Handler for starting reactive subscriptions
+    class StartReactiveSubscriptionHandler : public ICommandHandler<StartReactiveSubscriptionCommand> {
+    private:
+        shared_ptr<EventStore> _eventStore;
+
+    public:
+        StartReactiveSubscriptionHandler(shared_ptr<EventStore> eventStore)
+            : _eventStore(eventStore) {
+        }
+
+        void Handle(const string& stream_id, const StartReactiveSubscriptionCommand& cmd) override {
+            cout << "Starting reactive subscription: " << cmd.name() << endl;
+
+            
+            //_eventStore->CreateStream(cmd.name());
+        }
+    };
 }
 
 int main() {
-	auto socketFactory = make_shared<NggSocketFactory>();
-	auto plumber = cppplumberd::Plumber::CreateServer(socketFactory, "");
-	plumber->AddCommandHandler<app::SetterCommandHandler, app::SetterCommand, app::COMMANDS::SETTER>();
-	plumber->AddCommandHandler<app::StartReactiveSubscriptionHandler, app::StartReactiveSubscriptionCommand, app::COMMANDS::START_REACTIVE_SUBSCRIPTION>();
-	plumber->AddCommandHandler<app::CreateReactiveSubscriptionHandler, app::CreateReactiveSubscriptionCommand, app::COMMANDS::CREATE_REACTIVE_SUBSCRIPTION>();
-	plumber->AddEventHandler<app::ReactiveSubscriptionEventHandler, app::PropertyChangedEvent, app::EVENTS::PROPERTY_CHANGED>();
+    cout << "Starting app-server..." << endl;
 
-	return 0;
+    // Create socket factory
+    auto socketFactory = make_shared<NggSocketFactory>();
+
+    // Create plumber server
+    auto plumber = cppplumberd::Plumber::CreateServer(socketFactory);
+
+    // Create element registry with fake elements
+    auto registry = make_shared<app::ElementRegistryImpl>();
+
+    // Create fakevideosrc element with bufnumber property
+    auto srcElement = registry->AddElement("fakevideosrc");
+    auto bufNumberProp = srcElement->AddProperty("num-buffers", true, true);
+    bufNumberProp->SetValue(100);  // Initial value
+
+    // Create fakevideosink element with processed property
+    auto sinkElement = registry->AddElement("fakevideosink");
+    auto processedProp = sinkElement->AddProperty("processed", true, true);
+    processedProp->SetValue(0);  // Initial value
+
+    // Create property monitor service
+    auto propertyMonitor = make_shared<app::PropertyMonitorService>(plumber->EventStore());
+
+    // Set up command handlers
+    plumber->AddCommandHandler<app::SetterCommandHandler, app::SetterCommand, app::COMMANDS::SETTER>(registry);
+    plumber->AddCommandHandler<app::CreateReactiveSubscriptionHandler, app::CreateReactiveSubscriptionCommand, app::COMMANDS::CREATE_REACTIVE_SUBSCRIPTION>(
+        plumber->EventStore(), propertyMonitor, registry);
+    plumber->AddCommandHandler<app::StartReactiveSubscriptionHandler, app::StartReactiveSubscriptionCommand, app::COMMANDS::START_REACTIVE_SUBSCRIPTION>(
+        plumber->EventStore());
+
+    // Register message types
+    plumber->RegisterMessage<app::PropertyChangedEvent, app::EVENTS::PROPERTY_CHANGED>();
+
+    // Start the server
+    plumber->Start();
+
+    cout << "Server started. Press Enter to exit..." << endl;
+    cin.get();
+
+    // Stop the server
+    plumber->Stop();
+
+    cout << "Server stopped." << endl;
+    return 0;
 }

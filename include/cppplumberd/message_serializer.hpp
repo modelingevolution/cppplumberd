@@ -90,6 +90,13 @@ namespace cppplumberd
                 []() -> MessagePtr { return new TMessage(); }
             );
         }
+		string GetMessageName(const unsigned int messageId) const {
+			auto it = _messageIdMap.find(messageId);
+			if (it == _messageIdMap.end()) {
+				throw runtime_error("Message ID not registered");
+			}
+			return it->second.typeIdx.name();
+		}
         inline MessagePtr Deserialize(const void* data, const size_t size, const unsigned int messageId) const {
             auto it = _messageIdMap.find(messageId);
             if (it == _messageIdMap.end()) {

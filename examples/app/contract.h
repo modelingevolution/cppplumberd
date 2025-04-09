@@ -8,6 +8,6 @@ namespace app {
 		START_REACTIVE_SUBSCRIPTION = 0xFF + 3,
 	};
 	enum EVENTS : unsigned int {
-		PROPERTY_CHANGED = 0xFF + 1,
+		PROPERTY_CHANGED = 0xFFFF + 1,
 	};
 }

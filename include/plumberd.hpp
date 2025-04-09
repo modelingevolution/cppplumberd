@@ -127,7 +127,8 @@ namespace cppplumberd {
         void Handle(const std::string& stream_id, const CreateStream& cmd) override
         {
 			auto streamName = cmd.name();
-            _eventStore->CreateStream(streamName);
+
+            _eventStore->EnsureStreamCreated(streamName);
         }
     };
 

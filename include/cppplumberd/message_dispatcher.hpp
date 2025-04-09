@@ -40,6 +40,7 @@ namespace cppplumberd
                 // Ensure the message is of the expected type
                 const TMessage* typedMsg = dynamic_cast<const TMessage*>(msg);
                 if (!typedMsg) {
+					cout << "Message type mismatch: expected " << typeid(TMessage).name() << ", got " << msg->GetTypeName() << endl;
                     throw runtime_error("Message type mismatch");
                 }
 
