@@ -36,3 +36,5 @@
 /.vs/cppplumberd/v17
 /.vs
 /out/build/x64-Debug
+/out/build/WSL-Ubuntu-Debug/.cmake/api/v1
+/out/build/WSL-Ubuntu-Debug
