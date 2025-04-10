@@ -10,6 +10,23 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": ""
+    },
+    {
+      "name": "WSL-Ubuntu-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeExecutable": "cmake",
+      "cmakeCommandArgs": "-DCMAKE_TOOLCHAIN_FILE=/home/rmaciag/src/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x64" ],
+      "wslPath": "Ubuntu-24.04",
+      "variables": [],
+      "intelliSenseMode": "linux-gcc-x64",
+      "intellisenseOptions": { "additionalCompilerArgs": "-I/usr/local/include" }
+
     }
   ]
 }

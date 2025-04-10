@@ -35,14 +35,16 @@ public:
 };
 
 // Test Event handler that will process the Event
-class TestReadModel : public EventHandlerBase, public IEventHandler<PropertyChangedEvent> {
+class TestReadModel :
+public EventHandlerBase,
+public cppplumberd::IEventHandler<PropertyChangedEvent> {
 public:
 	TestReadModel()
 	{
 		Map<PropertyChangedEvent, app::testing::EVENTS::PROPERTY_CHANGED>();
 	}
 
-    void cppplumberd::IEventHandler<PropertyChangedEvent>::Handle(const Metadata& m, const PropertyChangedEvent& evt) override {
+    void Handle(const Metadata& m, const PropertyChangedEvent& evt) override {
         lock_guard<std::mutex> lock(mtx);
         receivedEvent = evt;
         EventReceived = true;
