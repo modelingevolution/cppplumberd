@@ -85,7 +85,7 @@ protected:
         server = Plumber::CreateServer(socketFactory);
         client = PlumberClient::CreateClient(socketFactory);
 
-        server->AddCommandHandler<TestCommandPublishingHandler, SetterCommand, app::testing::COMMANDS::SETTER>(server->EventStore());
+        server->AddCommandHandler<TestCommandPublishingHandler, SetterCommand, app::testing::COMMANDS::SETTER>(server->GetEventStore());
         server->RegisterMessage<PropertyChangedEvent, app::testing::EVENTS::PROPERTY_CHANGED>();
         server->Start();
 

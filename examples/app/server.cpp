@@ -353,14 +353,14 @@ int main() {
     processedProp->SetValue(0);  // Initial value
 
     // Create property monitor service
-    auto propertyMonitor = make_shared<app::PropertyMonitorService>(plumber->EventStore());
+    auto propertyMonitor = make_shared<app::PropertyMonitorService>(plumber->GetEventStore());
 
     // Set up command handlers
     plumber->AddCommandHandler<app::SetterCommandHandler, app::SetterCommand, app::COMMANDS::SETTER>(registry);
     plumber->AddCommandHandler<app::CreateReactiveSubscriptionHandler, app::CreateReactiveSubscriptionCommand, app::COMMANDS::CREATE_REACTIVE_SUBSCRIPTION>(
-        plumber->EventStore(), propertyMonitor, registry);
+        plumber->GetEventStore(), propertyMonitor, registry);
     plumber->AddCommandHandler<app::StartReactiveSubscriptionHandler, app::StartReactiveSubscriptionCommand, app::COMMANDS::START_REACTIVE_SUBSCRIPTION>(
-        plumber->EventStore());
+        plumber->GetEventStore());
 
     // Register message types
     plumber->RegisterMessage<app::PropertyChangedEvent, app::EVENTS::PROPERTY_CHANGED>();

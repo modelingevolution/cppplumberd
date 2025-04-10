@@ -26,7 +26,7 @@ namespace cppplumberd {
 	};
 	class ITransportSubscribeSocket : public ISocket {
 	public:
-		using ReceivedSignal = signal<void(uint8_t* buffer, size_t size)>;
+		typedef boost::signals2::signal<void(uint8_t* buffer, size_t size)> ReceivedSignal;
 		ReceivedSignal Received;
 
 	};

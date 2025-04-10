@@ -185,7 +185,7 @@ namespace cppplumberd {
         
         shared_ptr<ISocketFactory> _socketFactory;
         string _endpoint;
-        shared_ptr<CommandBus> _commandBus;
+        shared_ptr<PlumberCommandBus> _commandBus;
         shared_ptr<ISubscriptionManager> _subscriptionManager;
 		shared_ptr<MessageSerializer> _serializer;
         bool _isStarted = false;
@@ -203,7 +203,7 @@ namespace cppplumberd {
             auto clientHandler = make_unique<ProtoReqRspClientHandler>(
                 _socketFactory->CreateReqRspClientSocket(endpoint), _serializer);
 
-            _commandBus = make_shared<cppplumberd::CommandBus>(std::move(clientHandler));
+            _commandBus = make_shared<cppplumberd::PlumberCommandBus>(std::move(clientHandler));
 			_subscriptionManager = make_shared<cppplumberd::PlumberClient::SubscriptionManagerImp>(this);
 			_commandBus->RegisterMessage<CreateStream, COMMANDS::CREATE_STREAM>();
         }
@@ -224,7 +224,7 @@ namespace cppplumberd {
             _isStarted = false;
         }
 
-        virtual shared_ptr<CommandBus> CommandBus() {
+        virtual shared_ptr<PlumberCommandBus> CommandBus() {
             return _commandBus;
         }
 
@@ -279,7 +279,7 @@ namespace cppplumberd {
             _commandServiceHandler->Stop();
             _isStarted = false;
         }
-        shared_ptr<cppplumberd::EventStore> EventStore()
+        shared_ptr<cppplumberd::EventStore> GetEventStore()
         {
 			return _eventStore;
         }

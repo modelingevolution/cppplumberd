@@ -7,10 +7,10 @@ using namespace std::chrono;
 using namespace boost::signals2;
 namespace cppplumberd {
 
-	class CommandBus {
+	class PlumberCommandBus {
 	public:
 
-		inline CommandBus(std::unique_ptr<ProtoReqRspClientHandler> clientHandler)
+		inline PlumberCommandBus(std::unique_ptr<ProtoReqRspClientHandler> clientHandler)
 			: _handler(std::move(clientHandler)) {
 			if (!_handler) {
 				throw std::invalid_argument("ClientHandler cannot be null");
