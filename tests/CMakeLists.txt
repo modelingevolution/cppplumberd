@@ -1,4 +1,5 @@
 # Find required packages
+set(gtest_force_shared_crt OFF)  # Make sure GTest uses static runtime
 find_package(GTest QUIET)
 
 if(NOT GTest_FOUND)
@@ -9,11 +10,13 @@ if(NOT GTest_FOUND)
     GIT_TAG v1.16.0
   )
   # For Windows: Prevent overriding the parent project's compiler/linker settings
-  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  set(gtest_force_shared_crt OFF CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(googletest)
 endif()
 
-# Find dependencies
+# Find dependencies with static linking
+set(nngpp_STATIC ON)
+set(Protobuf_USE_STATIC_LIBS ON)
 find_package(nngpp CONFIG REQUIRED)
 find_package(Protobuf REQUIRED)
 
@@ -35,13 +38,13 @@ set(TEST_SOURCES
     "nng.cpp"
     proto_pub_sub_handlers_tests.cpp
     proto_req_rsp_handlers_tests.cpp
- "plumberd_command_flow_e2e.cpp" 
- "plumberd_event_flow_e2e.cpp")
+    "plumberd_command_flow_e2e.cpp" 
+    "plumberd_event_flow_e2e.cpp")
 
-# Single test executable
+# Single test executable - static linking
 add_executable(cppplumberd_tests ${TEST_SOURCES} ${TEST_PROTO_SRCS} ${TEST_PROTO_HDRS})
 
-# Set up library dependencies
+# Set up library dependencies - all static
 target_link_libraries(cppplumberd_tests PRIVATE
   ${PROJECT_NAME}
   cppplumberd-messages
@@ -50,6 +53,10 @@ target_link_libraries(cppplumberd_tests PRIVATE
   gtest_main
   gmock
 )
+
+if(MSVC)
+  target_compile_options(cppplumberd_tests PRIVATE /MT$<$<CONFIG:Debug>:d>)
+endif()
 
 # Set up include directories
 target_include_directories(cppplumberd_tests PRIVATE
@@ -61,9 +68,10 @@ target_include_directories(cppplumberd_tests PRIVATE
 # Register the test
 add_test(NAME cppplumberd_tests COMMAND cppplumberd_tests)
 
-# Set output directory (optional)
+# Set output directory
 set_target_properties(cppplumberd_tests PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+  LINK_FLAGS_RELEASE "/INCREMENTAL:NO /OPT:REF /OPT:ICF"
 )
 
 # Visual feedback on test setup

@@ -6,9 +6,22 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# For Windows: Fix runtime library to be consistent (all static or all dynamic)
+# Choose static runtime as you mentioned you want static linking
+if(MSVC)
+  # This sets runtime library to static debug/release
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  # These compiler options help enforce the runtime choice
+  add_compile_options(
+    $<$<CONFIG:Debug>:/MTd>
+    $<$<CONFIG:Release>:/MT>
+  )
+endif()
+
 # Find Boost components
 set(BOOST_MIN_VERSION "1.87.0")
-# Try to find Boost using BOOST_ROOT environment variable
+# Use static boost libraries to match our static runtime choice
+set(Boost_USE_STATIC_LIBS ON)
 find_package(Boost ${BOOST_MIN_VERSION} REQUIRED)
 
 if(NOT Boost_FOUND)
@@ -26,7 +39,7 @@ target_include_directories(${PROJECT_NAME} INTERFACE
   $<INSTALL_INTERFACE:include>
 )
 
- 
+# Find NNG
 find_package(nng CONFIG REQUIRED)
 message(STATUS "Found NNG: ${nng_VERSION}")
 

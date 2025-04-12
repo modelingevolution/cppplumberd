@@ -1,10 +1,15 @@
 cmake_minimum_required(VERSION 3.14)
 
+# Ensure static linking
+set(Protobuf_USE_STATIC_LIBS ON)
+set(protobuf_BUILD_SHARED_LIBS OFF)
+
 # Find Protocol Buffers
 find_package(Protobuf REQUIRED)
 message(STATUS "Found Protobuf: ${Protobuf_VERSION}")
 message(STATUS "Protobuf include directory: ${Protobuf_INCLUDE_DIRS}")
 message(STATUS "Protobuf libraries: ${Protobuf_LIBRARIES}")
+message(STATUS "Protobuf is static: ${Protobuf_USE_STATIC_LIBS}")
 
 # Define the proto files
 set(PROTO_FILES
@@ -22,19 +27,20 @@ protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
 message(STATUS "Proto source files: ${PROTO_SRCS}")
 message(STATUS "Proto header files: ${PROTO_HDRS}")
 
-# Create shared library
+# Create static library
 add_library(cppplumberd-messages STATIC ${PROTO_SRCS} ${PROTO_HDRS})
 
-# Set the library properties
+# Set the library properties - ensure static compilation
 set_target_properties(cppplumberd-messages PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
     POSITION_INDEPENDENT_CODE ON
+    STATIC_LIBRARY TRUE
     # Make sure the output name matches what's expected
     OUTPUT_NAME "cppplumberd-messages"
 )
 
-# Link against protobuf
+# Link against protobuf static libraries
 target_link_libraries(cppplumberd-messages PUBLIC protobuf::libprotobuf)
 
 # Add include directories
