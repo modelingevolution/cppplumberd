@@ -1,6 +1,6 @@
 #include "../../include/plumberd.hpp"
 #include "interfaces.hpp"
-#include "gst.pb.h"
+#include "example.pb.h"
 #include "contract.h"
 #include <iostream>
 #include <mutex>
@@ -14,12 +14,12 @@ using namespace std;
 
 namespace app {
 
-    using ValueType = gstcontrolbin::ValueType;
-    using SetterCommand = gstcontrolbin::SetterCommand;
-    using CreateReactiveSubscriptionCommand = gstcontrolbin::CreateReactiveSubscription;
-    using StartReactiveSubscriptionCommand = gstcontrolbin::StartReactiveSubscription;
-    using PropertySelector = gstcontrolbin::PropertySelector;
-    using PropertyChangedEvent = gstcontrolbin::PropertyChangedEvent;
+    using ValueType = example::ValueType;
+    using SetterCommand = example::SetterCommand;
+    using CreateReactiveSubscriptionCommand = example::CreateReactiveSubscription;
+    using StartReactiveSubscriptionCommand = example::StartReactiveSubscription;
+    using PropertySelector = example::PropertySelector;
+    using PropertyChangedEvent = example::PropertyChangedEvent;
 
     // PropertyInfo implementation with actual data
     class PropertyInfoImpl : public IPropertyInfo {

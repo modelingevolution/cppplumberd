@@ -8,6 +8,6 @@ namespace cppplumberd {
 		};
 		enum EVENTS : unsigned int {
 			
-		};
+		}; 
 	
 }

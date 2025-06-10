@@ -38,7 +38,7 @@ target_link_libraries(server PRIVATE nng::nng)
 set(Protobuf_USE_STATIC_LIBS ON)
 find_package(Protobuf REQUIRED)
 set(PROTO_FILES
-    proto/gst.proto
+    proto/example.proto
 )
 
 # Make sure output directories exist for protobuf-generated files

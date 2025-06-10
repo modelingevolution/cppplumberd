@@ -92,7 +92,7 @@ namespace cppplumberd {
 					
 					it->second->Publish(evt);
 
-					cout << "Event published '" << typeIdx.name() << "' in stream: " << streamName << endl;
+					//cout << "Event published '" << typeIdx.name() << "' in stream: " << streamName << endl;
 				}
 
 

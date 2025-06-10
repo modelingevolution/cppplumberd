@@ -173,7 +173,7 @@ namespace cppplumberd {
     public:
         inline ~ProtoFrameBuffer()
     	{
-			cout << "ProtoBuffer destroyed" << endl;
+			//cout << "ProtoBuffer destroyed" << endl;
     	}
         inline void Clear()
     	{

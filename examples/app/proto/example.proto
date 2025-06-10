@@ -1,7 +1,7 @@
 // proto/messages.proto
 syntax = "proto3";
 
-package gstcontrolbin;
+package example;
 
 enum ValueType {
   BYTE = 0;

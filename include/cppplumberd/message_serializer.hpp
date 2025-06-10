@@ -90,17 +90,17 @@ namespace cppplumberd
                 []() -> MessagePtr { return new TMessage(); }
             );
         }
-		string GetMessageName(const unsigned int messageId) const {
-			auto it = _messageIdMap.find(messageId);
-			if (it == _messageIdMap.end()) {
-				throw runtime_error("Message ID not registered");
-			}
-			return it->second.typeIdx.name();
-		}
+        string GetMessageName(const unsigned int messageId) const {  
+           auto it = _messageIdMap.find(messageId);  
+           if (it == _messageIdMap.end()) {  
+               throw runtime_error("GetMessageName/Message ID not registered: " + to_string(messageId));  
+           }  
+           return it->second.typeIdx.name();  
+        }
         inline MessagePtr Deserialize(const void* data, const size_t size, const unsigned int messageId) const {
             auto it = _messageIdMap.find(messageId);
             if (it == _messageIdMap.end()) {
-                throw runtime_error("Message ID not registered");
+                throw runtime_error("Deserialize/Message ID not registered: " + to_string(messageId) + " size: " + to_string(size)) ;
             }
             const auto& typeInfo = it->second;
 
@@ -113,7 +113,7 @@ namespace cppplumberd
         inline MessagePtr Deserialize(const string& data, const unsigned int messageId) const {
             auto it = _messageIdMap.find(messageId);
             if (it == _messageIdMap.end()) {
-                throw runtime_error("Message ID not registered");
+                throw runtime_error("Deserialize/Message ID not registered: " + to_string(messageId));
             }
             const auto& typeInfo = it->second;
 
