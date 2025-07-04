@@ -34,6 +34,16 @@ find_package(nng CONFIG REQUIRED)
 target_link_libraries(client PRIVATE nng::nng)
 target_link_libraries(server PRIVATE nng::nng)
 
+# Suppress NNG deprecated API warnings for example applications
+target_compile_options(client PRIVATE
+  $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wno-deprecated-declarations>
+  $<$<CXX_COMPILER_ID:MSVC>:/wd4996>
+)
+target_compile_options(server PRIVATE
+  $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wno-deprecated-declarations>
+  $<$<CXX_COMPILER_ID:MSVC>:/wd4996>
+)
+
 # Protocol Buffers integration (static)
 set(Protobuf_USE_STATIC_LIBS ON)
 find_package(Protobuf REQUIRED)

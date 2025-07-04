@@ -51,6 +51,12 @@ target_link_libraries(${PROJECT_NAME} INTERFACE
   nng::nng
 )
 
+# Suppress NNG deprecated API warnings
+target_compile_options(${PROJECT_NAME} INTERFACE
+  $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wno-deprecated-declarations>
+  $<$<CXX_COMPILER_ID:MSVC>:/wd4996>
+)
+
 # Installation
 install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}Targets)
 install(DIRECTORY include/ DESTINATION include)
