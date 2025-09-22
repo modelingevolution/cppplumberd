@@ -34,11 +34,17 @@ endif()
 
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
 
-# On Windows, ensure generated files use dynamic runtime
+# On Windows, ensure generated files use correct runtime for build type
 if(MSVC)
-    set_source_files_properties(${PROTO_SRCS} PROPERTIES
-        COMPILE_FLAGS "/MDd"
-    )
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set_source_files_properties(${PROTO_SRCS} PROPERTIES
+            COMPILE_FLAGS "/MDd"
+        )
+    else()
+        set_source_files_properties(${PROTO_SRCS} PROPERTIES
+            COMPILE_FLAGS "/MD"
+        )
+    endif()
 endif()
 
 # Print the generated files for debugging
