@@ -22,7 +22,7 @@ set(PROTO_FILES
 )
 
 # Create the directory where we will copy generated headers
-set(PROTO_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include/cppplumberd/proto")
+set(PROTO_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include/cppplumberd/proto")
 file(MAKE_DIRECTORY ${PROTO_INCLUDE_DIR})
 
 # Generate protobuf files
@@ -75,10 +75,13 @@ endif()
 target_link_libraries(cppplumberd-messages PUBLIC protobuf::libprotobuf)
 
 # Add include directories
+# CMAKE_CURRENT_BINARY_DIR = <build>/cppplumberd/proto/ (for #include "cqrs.pb.h")
+# CMAKE_CURRENT_BINARY_DIR/.. = <build>/cppplumberd/ (for #include "proto/cqrs.pb.h")
 target_include_directories(cppplumberd-messages
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/..>
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
 
