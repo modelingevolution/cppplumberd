@@ -1,0 +1,3 @@
+# Protobuf generated files - copied from build dir by CMake post-build step
+*.pb.h
+*.pb.cc
